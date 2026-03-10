@@ -1,0 +1,357 @@
+═══════════════════════════════════════════════════════════════
+  ETUDE#1 by Dr.C - WEBSITE HOSTING GUIDE
+═══════════════════════════════════════════════════════════════
+
+This guide will help you host Etude#1 on your website so colleagues,
+friends, and the public can experience it directly in their browsers.
+
+═══════════════════════════════════════════════════════════════
+  QUICK START
+═══════════════════════════════════════════════════════════════
+
+1. Create a folder on your website (e.g., /etude1/)
+2. Upload these files:
+   - ETUDE1_LANDING_PAGE.html → rename to index.html
+   - ETUDE1_v5.1_PERFECT_LABELS.html (keep filename)
+   - ETUDE1_MOBILE_OPTIMIZED.html (keep filename)
+3. Create ETUDE1_PACKAGE.zip containing all three files + README
+4. Upload the zip file
+5. Share the URL: yoursite.com/etude1/
+
+Done! No server-side code, databases, or special configuration needed.
+
+═══════════════════════════════════════════════════════════════
+  DETAILED HOSTING INSTRUCTIONS
+═══════════════════════════════════════════════════════════════
+
+STEP 1: PREPARE YOUR FILES
+───────────────────────────
+Create a local folder called "etude1" and organize files:
+
+etude1/
+├── index.html                          (landing page)
+├── ETUDE1_v5.1_PERFECT_LABELS.html    (full experience)
+├── ETUDE1_MOBILE_OPTIMIZED.html       (mobile version)
+├── ETUDE1_PACKAGE.zip                 (download package)
+└── README.txt                          (instructions for downloaders)
+
+You already have these files on your Desktop—just rename
+ETUDE1_LANDING_PAGE.html to index.html.
+
+
+STEP 2: CREATE THE DOWNLOAD PACKAGE
+────────────────────────────────────
+Create ETUDE1_PACKAGE.zip containing:
+- All three HTML files
+- README.txt with usage instructions
+- Optional: ETUDE1_CODE_DOCUMENTATION.md
+
+This allows visitors to download and run offline.
+
+
+STEP 3: UPLOAD TO YOUR WEBSITE
+───────────────────────────────
+Use your preferred method:
+
+FTP/SFTP:
+- Connect to your web server via FTP client (FileZilla, Cyberduck, etc.)
+- Navigate to public_html/ or www/ directory
+- Create "etude1" folder
+- Upload all files
+
+Control Panel (cPanel, Plesk, etc.):
+- Log into your hosting control panel
+- Use File Manager
+- Navigate to public_html/
+- Create "etude1" directory
+- Upload files via browser interface
+
+Git Deploy (Advanced):
+- If your host supports Git deployment (Netlify, Vercel, GitHub Pages)
+- Push files to repository
+- Deploy automatically
+
+
+STEP 4: VERIFY HTTPS
+─────────────────────
+CRITICAL: Modern browsers require HTTPS for Web Audio API.
+
+Check your URL:
+✓ https://yoursite.com/etude1/    ← Audio will work
+✗ http://yoursite.com/etude1/     ← Audio will be blocked
+
+If your site is HTTP only:
+1. Contact your hosting provider about SSL certificate
+2. Most offer free Let's Encrypt certificates
+3. Enable HTTPS in your hosting control panel
+4. Set up automatic HTTP → HTTPS redirect
+
+
+STEP 5: TEST ON MULTIPLE DEVICES
+─────────────────────────────────
+Visit yoursite.com/etude1/ and test:
+
+Desktop/Laptop:
+- Click "Launch Full Experience"
+- Verify audio plays after clicking "Start Experience"
+- Check that all controls respond
+- Try TAB key to hide/show UI
+
+Mobile Phone:
+- Click "Mobile/Tablet Version"
+- Verify audio starts (may require tapping play button on iOS)
+- Check that performance is smooth (30+ fps)
+- Rotate to landscape for better UI visibility
+
+Tablet:
+- Test both versions (full and mobile)
+- Verify touch controls work
+- Check particle animations are smooth
+
+═══════════════════════════════════════════════════════════════
+  HOSTING PROVIDER SPECIFIC NOTES
+═══════════════════════════════════════════════════════════════
+
+TRADITIONAL HOSTING (Bluehost, HostGator, SiteGround, etc.)
+────────────────────────────────────────────────────────────
+✓ Works perfectly—just upload files via FTP or cPanel
+✓ Ensure SSL certificate is active (usually free)
+✓ No special configuration needed
+✓ Path: /public_html/etude1/
+
+
+STATIC HOSTING (Netlify, Vercel, GitHub Pages)
+───────────────────────────────────────────────
+✓ EXCELLENT choice for this project
+✓ Free tier usually sufficient
+✓ Automatic HTTPS included
+✓ Drag-and-drop deployment available
+✓ Global CDN for fast loading worldwide
+
+Netlify:
+- Drag etude1 folder to Netlify drop zone
+- Get instant URL: random-name.netlify.app
+- Optional: Connect custom domain
+
+Vercel:
+- Import from Git or drag-and-drop
+- Instant deployment with HTTPS
+- Fast global CDN
+
+GitHub Pages:
+- Create repo, push files
+- Enable Pages in Settings
+- URL: username.github.io/etude1/
+
+
+WORDPRESS SITES
+───────────────
+Option A: Upload via FTP (recommended)
+- Upload to /wp-content/etude1/ folder
+- Access via: yoursite.com/wp-content/etude1/
+
+Option B: Create custom page template
+- Add HTML files to theme directory
+- Create page template that includes the experience
+- More complex—Option A is easier
+
+
+UNIVERSITY/INSTITUTIONAL SERVERS
+─────────────────────────────────
+✓ Usually support static HTML
+✓ May have home directory: ~/public_html/
+✓ URL often: university.edu/~username/etude1/
+✓ Check with IT department for:
+  - HTTPS support
+  - File size limits (files are small, ~400KB each)
+  - Audio streaming policies
+
+
+═══════════════════════════════════════════════════════════════
+  CUSTOM DOMAIN / SUBDOMAIN SETUP (OPTIONAL)
+═══════════════════════════════════════════════════════════════
+
+Want a cleaner URL like etude1.yoursite.com?
+
+SUBDOMAIN METHOD:
+1. Log into your domain registrar or hosting DNS panel
+2. Create A record or CNAME:
+   - Subdomain: etude1
+   - Points to: your server IP or domain
+3. Upload files to etude1 subdomain root directory
+4. Result: https://etude1.yoursite.com/
+
+CUSTOM PATH:
+Just use: https://yoursite.com/etude1/
+(Simpler, no DNS changes needed)
+
+
+═══════════════════════════════════════════════════════════════
+  PERFORMANCE OPTIMIZATION
+═══════════════════════════════════════════════════════════════
+
+1. ENABLE GZIP COMPRESSION (Reduces load time ~60%)
+   - Most hosts enable this by default
+   - Check in .htaccess or server config:
+     
+     AddOutputFilterByType DEFLATE text/html text/javascript
+
+2. SET CACHE HEADERS (Speeds up repeat visits)
+   - Add to .htaccess:
+     
+     <IfModule mod_expires.c>
+       ExpiresActive On
+       ExpiresByType text/html "access plus 1 hour"
+       ExpiresByType text/javascript "access plus 1 week"
+     </IfModule>
+
+3. CDN CONSIDERATIONS
+   - Etude#1 loads Csound WASM and Three.js from CDN
+   - First load: ~2-5 seconds (one-time download)
+   - Subsequent loads: instant (browser cache)
+   - No action needed—already optimized!
+
+
+═══════════════════════════════════════════════════════════════
+  TROUBLESHOOTING COMMON ISSUES
+═══════════════════════════════════════════════════════════════
+
+PROBLEM: "No audio playing"
+SOLUTION:
+- Verify HTTPS (not HTTP)
+- Check that user clicked "Start Experience" button
+- On iOS: tap unmute/play button if present
+- Try different browser (Chrome recommended)
+
+PROBLEM: "Page loads forever / stuck initializing"
+SOLUTION:
+- Check internet connection (CDN assets loading)
+- Clear browser cache and reload
+- Try incognito/private browsing mode
+- Verify Csound WASM CDN is accessible
+
+PROBLEM: "Particles are laggy on mobile"
+SOLUTION:
+- Use the mobile-optimized version (fewer particles)
+- Close other browser tabs
+- Reduce particle count in settings
+- Use newer device if possible
+
+PROBLEM: "Files won't upload / server error"
+SOLUTION:
+- Check file permissions (644 for HTML, 755 for directories)
+- Ensure filenames have no special characters
+- Verify you're uploading to public web directory
+- Check disk space quota
+
+PROBLEM: "Mixed content warning"
+SOLUTION:
+- Ensure your site uses HTTPS
+- All CDN links in HTML are already HTTPS
+- Check for any custom modifications
+
+═══════════════════════════════════════════════════════════════
+  ANALYTICS & MONITORING (OPTIONAL)
+═══════════════════════════════════════════════════════════════
+
+Want to track how many people experience your work?
+
+GOOGLE ANALYTICS:
+Add before </head> in index.html:
+
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=YOUR-GA-ID"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'YOUR-GA-ID');
+</script>
+
+Track events like:
+- "Start Experience" button clicks
+- Background image changes
+- Particle shape selections
+- Average session duration
+
+
+SIMPLE SERVER LOGS:
+Most hosting providers offer:
+- Visitor count
+- Page views
+- Geographic distribution
+- Browser/device breakdown
+
+Check your hosting control panel's statistics section.
+
+
+═══════════════════════════════════════════════════════════════
+  SHARING THE LINK
+═══════════════════════════════════════════════════════════════
+
+Once hosted, share your URL:
+
+EMAIL: "Experience my new generative composition at 
+        https://yoursite.com/etude1/"
+
+SOCIAL MEDIA: See SOCIAL_MEDIA_SHARING.txt for ready-to-use posts
+
+DIRECT LINKS:
+- Landing page: https://yoursite.com/etude1/
+- Full version: https://yoursite.com/etude1/ETUDE1_v5.1_PERFECT_LABELS.html
+- Mobile version: https://yoursite.com/etude1/ETUDE1_MOBILE_OPTIMIZED.html
+
+
+═══════════════════════════════════════════════════════════════
+  MAINTENANCE & UPDATES
+═══════════════════════════════════════════════════════════════
+
+The piece is self-contained and requires no maintenance!
+
+If you want to update:
+1. Modify local HTML file
+2. Re-upload via FTP
+3. Visitors may need to hard-refresh (Ctrl+F5 or Cmd+Shift+R)
+
+To force visitors to get new version:
+- Rename file (add version number)
+- Update index.html links
+- Or add ?v=2 to URLs in landing page
+
+
+═══════════════════════════════════════════════════════════════
+  SUPPORT & QUESTIONS
+═══════════════════════════════════════════════════════════════
+
+For technical questions:
+- Csound community: https://csound.com/community.html
+- Three.js forum: https://discourse.threejs.org/
+
+For hosting questions:
+- Your hosting provider's support
+- Web hosting forums (Reddit r/webhosting, Stack Overflow)
+
+═══════════════════════════════════════════════════════════════
+  SUMMARY CHECKLIST
+═══════════════════════════════════════════════════════════════
+
+□ Files organized in etude1/ folder
+□ Landing page renamed to index.html
+□ ETUDE1_PACKAGE.zip created
+□ Files uploaded to web server
+□ HTTPS verified and working
+□ Tested on desktop browser
+□ Tested on mobile device  
+□ Tested on tablet
+□ URL shared with colleagues/friends
+□ Optional: Analytics added
+□ Optional: Custom domain configured
+
+═══════════════════════════════════════════════════════════════
+
+You're all set! Your generative composition is now live and
+accessible to anyone with a web browser.
+
+Enjoy sharing your work with the world!
+
+═══════════════════════════════════════════════════════════════

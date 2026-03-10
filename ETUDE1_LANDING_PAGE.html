@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Etude#1 by Dr.C - Generative Audio-Visual Composition</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background: linear-gradient(135deg, #0a0a1e 0%, #1a1a3e 100%);
+        color: #e0e0e0;
+        line-height: 1.6;
+        padding: 20px;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .container {
+        max-width: 800px;
+        background: rgba(20, 20, 40, 0.9);
+        padding: 40px;
+        border-radius: 15px;
+        box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .subtitle {
+        font-size: 1.2em;
+        color: #9090c0;
+        margin-bottom: 30px;
+        font-style: italic;
+      }
+
+      .description {
+        margin-bottom: 30px;
+        font-size: 1.05em;
+        line-height: 1.8;
+      }
+
+      .features {
+        background: rgba(10, 10, 30, 0.5);
+        padding: 20px;
+        border-radius: 10px;
+        margin: 30px 0;
+        border-left: 4px solid #667eea;
+      }
+
+      .features h2 {
+        font-size: 1.3em;
+        margin-bottom: 15px;
+        color: #667eea;
+      }
+
+      .features ul {
+        list-style: none;
+        padding-left: 0;
+      }
+
+      .features li {
+        padding: 8px 0;
+        padding-left: 25px;
+        position: relative;
+      }
+
+      .features li:before {
+        content: "▸";
+        position: absolute;
+        left: 0;
+        color: #667eea;
+        font-size: 1.2em;
+      }
+
+      .tech-specs {
+        background: rgba(10, 10, 30, 0.5);
+        padding: 20px;
+        border-radius: 10px;
+        margin: 30px 0;
+        border-left: 4px solid #764ba2;
+      }
+
+      .tech-specs h2 {
+        font-size: 1.3em;
+        margin-bottom: 15px;
+        color: #764ba2;
+      }
+
+      .tech-specs p {
+        margin-bottom: 10px;
+      }
+
+      .tech-specs strong {
+        color: #9090c0;
+      }
+
+      .buttons {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-decoration: none;
+        padding: 15px 35px;
+        border-radius: 8px;
+        font-size: 1.1em;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        display: inline-block;
+        border: none;
+        cursor: pointer;
+      }
+
+      .btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.6);
+      }
+
+      .btn-secondary {
+        background: linear-gradient(135deg, #434343 0%, #000000 100%);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+      }
+
+      .btn-secondary:hover {
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      }
+
+      .btn-mobile {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        box-shadow: 0 6px 20px rgba(56, 239, 125, 0.4);
+      }
+
+      .btn-mobile:hover {
+        box-shadow: 0 10px 30px rgba(56, 239, 125, 0.6);
+      }
+
+      .requirements {
+        margin-top: 30px;
+        padding: 20px;
+        background: rgba(40, 20, 20, 0.3);
+        border-radius: 10px;
+        border-left: 4px solid #c0392b;
+      }
+
+      .requirements h3 {
+        color: #e74c3c;
+        margin-bottom: 10px;
+      }
+
+      .requirements ul {
+        list-style: none;
+        padding-left: 0;
+      }
+
+      .requirements li {
+        padding: 5px 0;
+        padding-left: 25px;
+        position: relative;
+      }
+
+      .requirements li:before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: #e74c3c;
+        font-weight: bold;
+      }
+
+      .credits {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 0.9em;
+        color: #808080;
+        text-align: center;
+      }
+
+      .credits a {
+        color: #667eea;
+        text-decoration: none;
+      }
+
+      .credits a:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 600px) {
+        .container {
+          padding: 25px;
+        }
+
+        h1 {
+          font-size: 1.8em;
+        }
+
+        .subtitle {
+          font-size: 1em;
+        }
+
+        .buttons {
+          flex-direction: column;
+        }
+
+        .btn {
+          width: 100%;
+          text-align: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Etude#1 by Dr.C</h1>
+      <div class="subtitle">Generative Audio-Visual Composition</div>
+
+      <div class="description">
+        <p>
+          <strong>Etude#1</strong> is an autonomous generative composition
+          system that creates an ever-evolving soundscape in the B Phrygian
+          mode. Combining real-time synthesis via Csound with audio-reactive 3D
+          particle visualizations, this piece explores the intersection of
+          algorithmic composition, immersive sound design, and interactive
+          visual art.
+        </p>
+        <p style="margin-top: 15px">
+          Each performance is unique—fourteen independent instrumental layers
+          interact through probabilistic decision-making, creating emergent
+          musical structures that never repeat exactly. The particle system
+          responds to the audio in real-time, with flocking behaviors creating
+          organic, lifelike motion patterns synchronized to the music.
+        </p>
+      </div>
+
+      <div class="features">
+        <h2>Features</h2>
+        <ul>
+          <li>
+            <strong>14 Autonomous Instrumental Layers:</strong> FM bells,
+            marimba, drones, noise swells, rumble, chords, flute, cello,
+            crickets, birds, water drips, and crackling fire
+          </li>
+          <li>
+            <strong>10 Sophisticated Effects:</strong> Multiple reverbs, delays,
+            shimmer, chorus, and spatial processing
+          </li>
+          <li>
+            <strong>Audio-Reactive Particles:</strong> 333-3333 particles with
+            flocking behavior responding to live audio levels
+          </li>
+          <li>
+            <strong>Full Control:</strong> Individual layer volumes, mute/solo,
+            particle count/shape, and visual backgrounds
+          </li>
+          <li>
+            <strong>Curated Visuals:</strong> 45 high-quality background images
+            including deep space, planets, clouds, sunsets, and Earth landscapes
+          </li>
+          <li>
+            <strong>Stereo Widening:</strong> Haas effect spatial processing for
+            immersive headphone listening
+          </li>
+          <li>
+            <strong>Persistent Settings:</strong> All preferences saved via
+            localStorage
+          </li>
+        </ul>
+      </div>
+
+      <div class="tech-specs">
+        <h2>Technical Details</h2>
+        <p><strong>Synthesis Engine:</strong> Csound 6.18 (via WebAssembly)</p>
+        <p><strong>Visual Engine:</strong> Three.js r128</p>
+        <p>
+          <strong>Compositional Mode:</strong> B Phrygian (B C# D E F# G# A)
+        </p>
+        <p>
+          <strong>Sample Rate:</strong> 44.1kHz, 32-sample buffer, stereo output
+        </p>
+        <p>
+          <strong>Audio Architecture:</strong> Recursive autonomous composers
+          with probabilistic note generation
+        </p>
+        <p>
+          <strong>Particle System:</strong> Flocking algorithm with cohesion,
+          separation, and alignment forces
+        </p>
+        <p>
+          <strong>Performance:</strong> Client-side only—no server required,
+          runs entirely in browser
+        </p>
+      </div>
+
+      <div class="buttons">
+        <a href="ETUDE1_v5.1_PERFECT_LABELS.html" class="btn"
+          >Launch Full Experience</a
+        >
+        <a href="ETUDE1_MOBILE_OPTIMIZED.html" class="btn btn-mobile"
+          >Mobile/Tablet Version</a
+        >
+        <a href="ETUDE1_PACKAGE.zip" class="btn btn-secondary" download
+          >Download (.zip)</a
+        >
+      </div>
+
+      <div class="requirements">
+        <h3>Requirements</h3>
+        <ul>
+          <li>Modern browser (Chrome, Firefox, Safari, Edge—2020 or newer)</li>
+          <li>Audio playback enabled (requires user gesture to start)</li>
+          <li>
+            Stable internet connection for first load (loads Csound WASM ~2MB)
+          </li>
+          <li>Headphones recommended for spatial effects</li>
+          <li>
+            <strong>Desktop/Laptop:</strong> Best experience, full particle
+            count supported
+          </li>
+          <li>
+            <strong>Tablets:</strong> Excellent experience, use mobile version
+            for best performance
+          </li>
+          <li>
+            <strong>Phones:</strong> Works well with mobile-optimized version
+          </li>
+        </ul>
+      </div>
+
+      <div class="credits">
+        <p>
+          Created by <strong>Richard Boulanger</strong> with
+          <strong>Dr.C</strong> (AI Assistant)<br />
+          Built with
+          <a href="https://csound.com/" target="_blank">Csound</a> and
+          <a href="https://threejs.org/" target="_blank">Three.js</a><br />
+          © 2026 • Generative Audio-Visual Art
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
