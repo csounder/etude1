@@ -11,7 +11,8 @@
 7. [Audio Synthesis Techniques](#audio-synthesis-techniques)
 8. [Visual System (Three.js)](#visual-system)
 9. [User Interface Controls](#user-interface-controls)
-10. [Key Algorithms](#key-algorithms)
+10. [CSD Recording & Export](#csd-recording--export)
+11. [Key Algorithms](#key-algorithms)
 
 ---
 
@@ -1021,6 +1022,256 @@ function toggleAllControls() {
 - Full-screen immersive experience
 - Hide UI for presentations/performances
 - Press TAB again to restore controls
+
+---
+
+## CSD Recording & Export
+
+### Overview
+
+The CSD recording system captures live generative performances and exports them as standalone Csound (.csd) files that can be:
+
+- Replayed in any Csound application (Csound command line, CsoundQt, Cabbage)
+- Shared with other Csound users
+- Modified and studied for educational purposes
+- Archived as unique compositions
+
+### Recording Flow
+
+```javascript
+// 1. User clicks "Start CSD Recording"
+function generateCsound() {
+  if (!csdRecording) {
+    csdRecording = true;
+    csdRecordingStartTime = Date.now();
+
+    // Build complete CSD header with orchestra code
+    const csdHeader = `<CsoundSynthesizer>
+      <CsOptions>
+      -odac -d -m0
+      </CsOptions>
+      <CsInstruments>
+      ${orc.trim()}
+      
+      ; Initialize control channels for standalone playback
+      instr ChannelInit
+        ${channelInits}chnset 1.0, "vol_dry"
+        chnset 1.0, "vol_effect"
+        turnoff
+      endin
+      </CsInstruments>
+      <CsScore>
+      ; === RECORDED PERFORMANCE ===
+      ; Started: ${new Date().toISOString()}
+      
+      ; Initialize control channels first
+      i "ChannelInit" 0 0.01
+      
+      ; Effect instruments (always on)
+      i "GlobalFadeIn" 0 3600
+      ...
+      
+      ; Performance notes
+      `;
+
+    output.value = csdHeader;
+  }
+}
+```
+
+### Note Capture System
+
+Every time an instrument plays a note, it's automatically captured:
+
+```javascript
+// In composeFM(), composeDrone(), etc.
+csound.inputMessage(`i "FM" 0 ${dur} ${note} ${amp}`);
+addNoteToCSD("FM", dur, note, amp); // ← Capture to CSD
+
+function addNoteToCSD(instrName, p3, ...pfields) {
+  if (!csdRecording) return;
+
+  // Calculate relative time since recording started
+  const elapsed = (Date.now() - csdRecordingStartTime) / 1000;
+  const p2 = elapsed.toFixed(3);
+
+  // Build score statement
+  const pfieldsStr = pfields.join(" ");
+  const scoreStatement = `i "${instrName}" ${p2} ${p3} ${pfieldsStr}`;
+
+  // Append to console output
+  const output = document.getElementById("csdOutput");
+  output.value += scoreStatement + "\n";
+}
+```
+
+### Stop Recording
+
+```javascript
+function stopCSDRecording() {
+  if (!csdRecording) return;
+  csdRecording = false;
+
+  // Add closing tags
+  const footer = `\ne\n</CsScore>
+    </CsoundSynthesizer>`;
+  output.value += footer;
+
+  // Enable download button
+  document.getElementById("downloadCsdBtn").disabled = false;
+
+  // Prompt user to download
+  if (confirm("Recording stopped. Download the CSD file now?")) {
+    downloadCsd();
+  }
+}
+```
+
+### Download System
+
+```javascript
+function downloadCsd() {
+  const output = document.getElementById("csdOutput");
+  if (!output.value.trim()) {
+    alert("No CSD content to download");
+    return;
+  }
+
+  // Generate timestamped filename
+  const timestamp = new Date().toISOString().replace(/:/g, "-").split(".")[0];
+  const filename = `etude1_${timestamp}.csd`;
+
+  // Create blob and download
+  const blob = new Blob([output.value], {
+    type: "text/plain;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+```
+
+### Example Generated CSD
+
+```csound
+<CsoundSynthesizer>
+<CsOptions>
+-odac -d -m0
+</CsOptions>
+<CsInstruments>
+sr = 44100
+ksmps = 32
+nchnls = 2
+0dbfs = 1
+seed 0
+
+; ... (full orchestra code) ...
+
+instr ChannelInit
+  chnset 0.50, "vol_fm"
+  chnset 0.50, "vol_drone"
+  ; ... all channel initializations ...
+  turnoff
+endin
+</CsInstruments>
+<CsScore>
+; === RECORDED PERFORMANCE ===
+; Started: 2026-03-14T12:45:30
+
+; Initialize control channels first
+i "ChannelInit" 0 0.01
+
+; Effect instruments (always on)
+i "GlobalFadeIn" 0 3600
+i "MasterVolumeInit" 0 0.01
+i "KillSwitch" 0 3600
+i "Echo" 0 3600
+i "Reverb" 0 3600
+; ... more effects ...
+
+; Performance notes
+i "FM" 0.423 1.234 72 0.087
+i "Drone" 1.856 7.890 47 52 59 0.120
+i "Cello" 3.145 4.567 54 0.380
+i "Cricket" 5.892 0.156 0.420
+; ... thousands of unique notes ...
+
+e
+</CsScore>
+</CsoundSynthesizer>
+```
+
+### Key Features
+
+**1. Timing Precision:**
+
+- Millisecond-accurate timestamps
+- Preserves exact generative performance
+- All notes relative to recording start
+
+**2. Complete Portability:**
+
+- Full orchestra code included
+- All channel initializations captured
+- Effect instruments always scheduled
+- Standalone playback guaranteed
+
+**3. Volume Preservation:**
+
+- Current slider values captured at recording start
+- Embedded in ChannelInit instrument
+- Playback matches live performance
+
+**4. Real-time Console:**
+
+- Score statements visible as they're generated
+- Toggle show/hide for unobstructed view
+- Scrolls automatically to show latest notes
+
+### Use Cases
+
+**Educational:**
+
+- Study generative composition techniques
+- Analyze probabilistic note generation
+- Learn Csound score syntax
+
+**Creative:**
+
+- Capture unique performances
+- Share generative compositions
+- Create variations by editing score
+
+**Technical:**
+
+- Debugging instrument behavior
+- Performance analysis
+- Archival documentation
+
+### Technical Notes
+
+**Why Timestamp Instead of Beat Time?**
+
+- Generative timing is irregular
+- No fixed tempo or meter
+- Real-time capture more accurate
+
+**Why Include Full Orchestra?**
+
+- Ensures playback compatibility
+- No external dependencies
+- Self-documenting code
+
+**Why Initialize Channels?**
+
+- Browser Csound uses channels for volume
+- Standalone Csound needs initialization
+- ChannelInit instrument runs once at start
 
 ---
 

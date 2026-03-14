@@ -68,6 +68,29 @@
         max-width: 300px;
       }
 
+      #csdOutput {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 10;
+        background: rgba(10, 10, 30, 0.95);
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        font-family: "Courier New", monospace;
+        font-size: 11px;
+        color: #00ff88;
+        width: 500px;
+        height: 400px;
+        resize: both;
+        overflow: auto;
+        display: none;
+      }
+
+      #csdOutput.visible {
+        display: block;
+      }
+
       button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -272,6 +295,14 @@
       <button id="stopBtn" disabled>⏹ Stop</button>
       <button id="toggleSlidersBtn">⚙️ Hide Sliders</button>
       <button id="hideAllBtn">👁️ Hide All (TAB)</button>
+
+      <h2 style="margin-top: 20px">CSD Recording</h2>
+      <button id="startCsdBtn">⏺ Start CSD Recording</button>
+      <button id="toggleConsoleBtn" style="width: 100%">👁️ Show Console</button>
+      <button id="downloadCsdBtn" disabled style="width: 100%">
+        💾 Download .CSD File
+      </button>
+
       <div class="info">Generative audio-visual composition in B Phrygian</div>
 
       <h2>Global Mix Levels</h2>
@@ -752,6 +783,8 @@
       <strong>Status:</strong> <span id="statusText">Ready</span><br />
       <strong>Time:</strong> <span id="timeText">0:00</span>
     </div>
+
+    <textarea id="csdOutput" readonly></textarea>
 
     <script type="text/javascript">
       // Three.js setup
@@ -1247,39 +1280,39 @@
       function createSkyboxShader(skyboxName) {
         // Shared noise functions for all shaders
         const noiseFunc = `
-          float hash(vec3 p) {
-            p = fract(p * 0.3183099 + 0.1);
-            p *= 17.0;
-            return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
-          }
+                float hash(vec3 p) {
+                  p = fract(p * 0.3183099 + 0.1);
+                  p *= 17.0;
+                  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+                }
 
-          float noise(vec3 x) {
-            vec3 i = floor(x);
-            vec3 f = fract(x);
-            f = f * f * (3.0 - 2.0 * f);
-            return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
-                          mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
-                      mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
-                          mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
-          }
+                float noise(vec3 x) {
+                  vec3 i = floor(x);
+                  vec3 f = fract(x);
+                  f = f * f * (3.0 - 2.0 * f);
+                  return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
+                                mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+                            mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+                                mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
+                }
 
-          float fbm(vec3 p) {
-            float value = 0.0;
-            float amplitude = 0.5;
-            for (int i = 0; i < 6; i++) {
-              value += amplitude * noise(p);
-              p *= 2.0;
-              amplitude *= 0.5;
-            }
-            return value;
-          }
+                float fbm(vec3 p) {
+                  float value = 0.0;
+                  float amplitude = 0.5;
+                  for (int i = 0; i < 6; i++) {
+                    value += amplitude * noise(p);
+                    p *= 2.0;
+                    amplitude *= 0.5;
+                  }
+                  return value;
+                }
 
-          vec3 stars(vec3 p, float density, float brightness) {
-            float starField = pow(hash(floor(p * density)), 24.0) * brightness;
-            vec3 starColor = mix(vec3(1.0), vec3(0.6, 0.8, 1.0), hash(floor(p * density + 1.0)));
-            return starField * starColor;
-          }
-        `;
+                vec3 stars(vec3 p, float density, float brightness) {
+                  float starField = pow(hash(floor(p * density)), 24.0) * brightness;
+                  vec3 starColor = mix(vec3(1.0), vec3(0.6, 0.8, 1.0), hash(floor(p * density + 1.0)));
+                  return starField * starColor;
+                }
+              `;
 
         const shaders = {
           nebula: {
@@ -1288,54 +1321,54 @@
               opacity: { value: 1.0 },
             },
             vertexShader: `
-              varying vec3 vPosition;
-              void main() {
-                vPosition = normalize(position);
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-              }
-            `,
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = normalize(position);
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
             fragmentShader: `
-              uniform float time;
-              uniform float opacity;
-              varying vec3 vPosition;
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
 
-              float hash(vec2 p) {
-                return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-              }
+                    float hash(vec2 p) {
+                      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+                    }
 
-              void main() {
-                vec3 p = vPosition;
+                    void main() {
+                      vec3 p = vPosition;
 
-                // Vivid nebula gradient
-                float height = p.y * 0.5 + 0.5;
-                vec3 color1 = vec3(0.1, 0.05, 0.2); // Dark purple
-                vec3 color2 = vec3(0.8, 0.1, 0.6); // Bright magenta
-                vec3 color3 = vec3(0.4, 0.2, 0.9); // Blue-purple
-                vec3 color4 = vec3(1.0, 0.3, 0.5); // Pink
+                      // Vivid nebula gradient
+                      float height = p.y * 0.5 + 0.5;
+                      vec3 color1 = vec3(0.1, 0.05, 0.2); // Dark purple
+                      vec3 color2 = vec3(0.8, 0.1, 0.6); // Bright magenta
+                      vec3 color3 = vec3(0.4, 0.2, 0.9); // Blue-purple
+                      vec3 color4 = vec3(1.0, 0.3, 0.5); // Pink
 
-                // Create swirling pattern
-                float angle = atan(p.x, p.z) + time * 0.1;
-                float swirl = sin(angle * 3.0 + height * 5.0 + time * 0.2) * 0.5 + 0.5;
+                      // Create swirling pattern
+                      float angle = atan(p.x, p.z) + time * 0.1;
+                      float swirl = sin(angle * 3.0 + height * 5.0 + time * 0.2) * 0.5 + 0.5;
 
-                vec3 skyColor = mix(color1, color2, height);
-                skyColor = mix(skyColor, color3, swirl);
-                skyColor = mix(skyColor, color4, sin(time * 0.3 + height * 10.0) * 0.3 + 0.3);
+                      vec3 skyColor = mix(color1, color2, height);
+                      skyColor = mix(skyColor, color3, swirl);
+                      skyColor = mix(skyColor, color4, sin(time * 0.3 + height * 10.0) * 0.3 + 0.3);
 
-                // Add bright stars
-                vec2 st = vec2(atan(p.x, p.z), acos(p.y));
-                vec2 grid = floor(st * 100.0);
-                float starThreshold = hash(grid);
-                if (starThreshold > 0.99) {
-                  float starBrightness = (starThreshold - 0.99) * 100.0;
-                  skyColor += vec3(1.0) * starBrightness * 3.0;
-                }
+                      // Add bright stars
+                      vec2 st = vec2(atan(p.x, p.z), acos(p.y));
+                      vec2 grid = floor(st * 100.0);
+                      float starThreshold = hash(grid);
+                      if (starThreshold > 0.99) {
+                        float starBrightness = (starThreshold - 0.99) * 100.0;
+                        skyColor += vec3(1.0) * starBrightness * 3.0;
+                      }
 
-                // Add glow
-                skyColor *= 1.5;
+                      // Add glow
+                      skyColor *= 1.5;
 
-                gl_FragColor = vec4(skyColor, opacity);
-              }
-            `,
+                      gl_FragColor = vec4(skyColor, opacity);
+                    }
+                  `,
           },
           galaxy: {
             uniforms: {
@@ -1343,46 +1376,46 @@
               opacity: { value: skyboxEnabled ? 1.0 : 0 },
             },
             vertexShader: `
-              varying vec3 vPosition;
-              void main() {
-                vPosition = position;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-              }
-            `,
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
             fragmentShader: `
-              uniform float time;
-              uniform float opacity;
-              varying vec3 vPosition;
-              ${noiseFunc}
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
 
-              void main() {
-                vec3 p = normalize(vPosition);
+                    void main() {
+                      vec3 p = normalize(vPosition);
 
-                // Spiral galaxy effect
-                float angle = atan(p.x, p.z);
-                float radius = length(p.xz);
-                float spiral = sin(angle * 3.0 - radius * 10.0 + time * 0.1);
+                      // Spiral galaxy effect
+                      float angle = atan(p.x, p.z);
+                      float radius = length(p.xz);
+                      float spiral = sin(angle * 3.0 - radius * 10.0 + time * 0.1);
 
-                float n1 = fbm(p * 3.0 + vec3(time * 0.02, 0.0, 0.0));
-                float n2 = fbm(p * 6.0);
+                      float n1 = fbm(p * 3.0 + vec3(time * 0.02, 0.0, 0.0));
+                      float n2 = fbm(p * 6.0);
 
-                // Galaxy colors
-                vec3 color1 = vec3(0.05, 0.1, 0.4); // Deep blue
-                vec3 color2 = vec3(0.2, 0.4, 0.9); // Bright blue
-                vec3 color3 = vec3(0.8, 0.9, 1.0); // White-blue
+                      // Galaxy colors
+                      vec3 color1 = vec3(0.05, 0.1, 0.4); // Deep blue
+                      vec3 color2 = vec3(0.2, 0.4, 0.9); // Bright blue
+                      vec3 color3 = vec3(0.8, 0.9, 1.0); // White-blue
 
-                vec3 galaxy = mix(color1, color2, n1);
-                galaxy = mix(galaxy, color3, spiral * n2 * 0.5);
+                      vec3 galaxy = mix(color1, color2, n1);
+                      galaxy = mix(galaxy, color3, spiral * n2 * 0.5);
 
-                // Multi-layer stars
-                vec3 starField = stars(p, 600.0, 2.0);
-                starField += stars(p, 1500.0, 1.2);
-                starField += stars(p, 3000.0, 0.6);
+                      // Multi-layer stars
+                      vec3 starField = stars(p, 600.0, 2.0);
+                      starField += stars(p, 1500.0, 1.2);
+                      starField += stars(p, 3000.0, 0.6);
 
-                vec3 finalColor = galaxy * 1.8 + starField;
-                gl_FragColor = vec4(finalColor, opacity);
-              }
-            `,
+                      vec3 finalColor = galaxy * 1.8 + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
           },
           stars: {
             uniforms: {
@@ -1390,39 +1423,39 @@
               opacity: { value: skyboxEnabled ? 1.0 : 0 },
             },
             vertexShader: `
-              varying vec3 vPosition;
-              void main() {
-                vPosition = position;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-              }
-            `,
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
             fragmentShader: `
-              uniform float time;
-              uniform float opacity;
-              varying vec3 vPosition;
-              ${noiseFunc}
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
 
-              void main() {
-                vec3 p = normalize(vPosition);
+                    void main() {
+                      vec3 p = normalize(vPosition);
 
-                // Deep space background
-                float n = noise(p * 3.0);
-                vec3 bg = vec3(0.02, 0.03, 0.08) * (1.0 + n * 0.5);
+                      // Deep space background
+                      float n = noise(p * 3.0);
+                      vec3 bg = vec3(0.02, 0.03, 0.08) * (1.0 + n * 0.5);
 
-                // Dense star clusters with multiple layers
-                vec3 starField = stars(p, 500.0, 3.0);
-                starField += stars(p, 1000.0, 2.0);
-                starField += stars(p, 2000.0, 1.5);
-                starField += stars(p, 4000.0, 1.0);
+                      // Dense star clusters with multiple layers
+                      vec3 starField = stars(p, 500.0, 3.0);
+                      starField += stars(p, 1000.0, 2.0);
+                      starField += stars(p, 2000.0, 1.5);
+                      starField += stars(p, 4000.0, 1.0);
 
-                // Add twinkling
-                float twinkle = sin(time * 2.0 + hash(floor(p * 1000.0)) * 100.0) * 0.3 + 0.7;
-                starField *= twinkle;
+                      // Add twinkling
+                      float twinkle = sin(time * 2.0 + hash(floor(p * 1000.0)) * 100.0) * 0.3 + 0.7;
+                      starField *= twinkle;
 
-                vec3 finalColor = bg + starField;
-                gl_FragColor = vec4(finalColor, opacity);
-              }
-            `,
+                      vec3 finalColor = bg + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
           },
           sunset: {
             uniforms: {
@@ -1430,51 +1463,51 @@
               opacity: { value: skyboxEnabled ? 1.0 : 0 },
             },
             vertexShader: `
-              varying vec3 vPosition;
-              void main() {
-                vPosition = position;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-              }
-            `,
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
             fragmentShader: `
-              uniform float time;
-              uniform float opacity;
-              varying vec3 vPosition;
-              ${noiseFunc}
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
 
-              void main() {
-                vec3 p = normalize(vPosition);
+                    void main() {
+                      vec3 p = normalize(vPosition);
 
-                // Sunset gradient based on vertical position
-                float horizon = p.y;
+                      // Sunset gradient based on vertical position
+                      float horizon = p.y;
 
-                vec3 color1 = vec3(0.02, 0.05, 0.15); // Night blue
-                vec3 color2 = vec3(1.0, 0.3, 0.1); // Deep orange
-                vec3 color3 = vec3(1.0, 0.6, 0.2); // Orange
-                vec3 color4 = vec3(1.0, 0.8, 0.4); // Yellow
-                vec3 color5 = vec3(0.4, 0.6, 0.9); // Sky blue
+                      vec3 color1 = vec3(0.02, 0.05, 0.15); // Night blue
+                      vec3 color2 = vec3(1.0, 0.3, 0.1); // Deep orange
+                      vec3 color3 = vec3(1.0, 0.6, 0.2); // Orange
+                      vec3 color4 = vec3(1.0, 0.8, 0.4); // Yellow
+                      vec3 color5 = vec3(0.4, 0.6, 0.9); // Sky blue
 
-                vec3 sky = color1;
-                sky = mix(sky, color2, smoothstep(-0.4, -0.2, horizon));
-                sky = mix(sky, color3, smoothstep(-0.2, 0.0, horizon));
-                sky = mix(sky, color4, smoothstep(0.0, 0.2, horizon));
-                sky = mix(sky, color5, smoothstep(0.3, 0.6, horizon));
+                      vec3 sky = color1;
+                      sky = mix(sky, color2, smoothstep(-0.4, -0.2, horizon));
+                      sky = mix(sky, color3, smoothstep(-0.2, 0.0, horizon));
+                      sky = mix(sky, color4, smoothstep(0.0, 0.2, horizon));
+                      sky = mix(sky, color5, smoothstep(0.3, 0.6, horizon));
 
-                // Clouds with depth
-                float n1 = fbm(p * 4.0 + vec3(time * 0.01, 0.0, 0.0));
-                float n2 = fbm(p * 8.0 - vec3(time * 0.02, 0.0, 0.0));
-                float clouds = smoothstep(0.4, 0.7, n1) * smoothstep(0.3, 0.6, n2);
+                      // Clouds with depth
+                      float n1 = fbm(p * 4.0 + vec3(time * 0.01, 0.0, 0.0));
+                      float n2 = fbm(p * 8.0 - vec3(time * 0.02, 0.0, 0.0));
+                      float clouds = smoothstep(0.4, 0.7, n1) * smoothstep(0.3, 0.6, n2);
 
-                vec3 cloudColor = mix(vec3(0.8, 0.4, 0.2), vec3(1.0, 0.9, 0.7), n2);
-                sky = mix(sky, cloudColor, clouds * 0.8);
+                      vec3 cloudColor = mix(vec3(0.8, 0.4, 0.2), vec3(1.0, 0.9, 0.7), n2);
+                      sky = mix(sky, cloudColor, clouds * 0.8);
 
-                // Subtle stars in darker areas
-                vec3 starField = stars(p, 400.0, 0.5) * smoothstep(0.0, -0.3, horizon);
+                      // Subtle stars in darker areas
+                      vec3 starField = stars(p, 400.0, 0.5) * smoothstep(0.0, -0.3, horizon);
 
-                vec3 finalColor = sky * 1.3 + starField;
-                gl_FragColor = vec4(finalColor, opacity);
-              }
-            `,
+                      vec3 finalColor = sky * 1.3 + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
           },
           clouds: {
             uniforms: {
@@ -1482,50 +1515,50 @@
               opacity: { value: skyboxEnabled ? 1.0 : 0 },
             },
             vertexShader: `
-              varying vec3 vPosition;
-              void main() {
-                vPosition = position;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-              }
-            `,
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
             fragmentShader: `
-              uniform float time;
-              uniform float opacity;
-              varying vec3 vPosition;
-              ${noiseFunc}
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
 
-              void main() {
-                vec3 p = normalize(vPosition);
+                    void main() {
+                      vec3 p = normalize(vPosition);
 
-                // Sky gradient
-                float horizon = p.y;
-                vec3 skyTop = vec3(0.3, 0.5, 0.9);
-                vec3 skyHorizon = vec3(0.6, 0.8, 1.0);
-                vec3 sky = mix(skyHorizon, skyTop, smoothstep(-0.2, 0.5, horizon));
+                      // Sky gradient
+                      float horizon = p.y;
+                      vec3 skyTop = vec3(0.3, 0.5, 0.9);
+                      vec3 skyHorizon = vec3(0.6, 0.8, 1.0);
+                      vec3 sky = mix(skyHorizon, skyTop, smoothstep(-0.2, 0.5, horizon));
 
-                // Volumetric clouds
-                float n1 = fbm(p * 3.0 + vec3(time * 0.02, 0.0, time * 0.01));
-                float n2 = fbm(p * 6.0 + vec3(time * 0.01, 0.0, 0.0));
-                float n3 = fbm(p * 12.0);
+                      // Volumetric clouds
+                      float n1 = fbm(p * 3.0 + vec3(time * 0.02, 0.0, time * 0.01));
+                      float n2 = fbm(p * 6.0 + vec3(time * 0.01, 0.0, 0.0));
+                      float n3 = fbm(p * 12.0);
 
-                float cloudDensity = smoothstep(0.3, 0.7, n1) * smoothstep(0.4, 0.6, n2);
+                      float cloudDensity = smoothstep(0.3, 0.7, n1) * smoothstep(0.4, 0.6, n2);
 
-                // Cloud shading for 3D effect
-                vec3 cloudBase = vec3(0.9, 0.95, 1.0);
-                vec3 cloudShadow = vec3(0.5, 0.6, 0.7);
-                vec3 cloudColor = mix(cloudShadow, cloudBase, n3);
+                      // Cloud shading for 3D effect
+                      vec3 cloudBase = vec3(0.9, 0.95, 1.0);
+                      vec3 cloudShadow = vec3(0.5, 0.6, 0.7);
+                      vec3 cloudColor = mix(cloudShadow, cloudBase, n3);
 
-                sky = mix(sky, cloudColor, cloudDensity * 0.9);
+                      sky = mix(sky, cloudColor, cloudDensity * 0.9);
 
-                // Sun glow
-                vec3 sunDir = normalize(vec3(0.5, 0.3, -0.8));
-                float sunGlow = pow(max(dot(p, sunDir), 0.0), 8.0);
-                sky += vec3(1.0, 0.9, 0.7) * sunGlow * 0.5;
+                      // Sun glow
+                      vec3 sunDir = normalize(vec3(0.5, 0.3, -0.8));
+                      float sunGlow = pow(max(dot(p, sunDir), 0.0), 8.0);
+                      sky += vec3(1.0, 0.9, 0.7) * sunGlow * 0.5;
 
-                vec3 finalColor = sky * 1.2;
-                gl_FragColor = vec4(finalColor, opacity);
-              }
-            `,
+                      vec3 finalColor = sky * 1.2;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
           },
           mars: {
             uniforms: {
@@ -1533,47 +1566,47 @@
               opacity: { value: skyboxEnabled ? 1.0 : 0 },
             },
             vertexShader: `
-              varying vec3 vPosition;
-              void main() {
-                vPosition = position;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-              }
-            `,
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
             fragmentShader: `
-              uniform float time;
-              uniform float opacity;
-              varying vec3 vPosition;
-              ${noiseFunc}
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
 
-              void main() {
-                vec3 p = normalize(vPosition);
+                    void main() {
+                      vec3 p = normalize(vPosition);
 
-                // Mars atmosphere
-                float horizon = p.y;
-                vec3 color1 = vec3(0.1, 0.05, 0.03); // Dark mars
-                vec3 color2 = vec3(0.6, 0.2, 0.1); // Red-brown
-                vec3 color3 = vec3(0.9, 0.4, 0.2); // Orange-red
-                vec3 color4 = vec3(0.95, 0.7, 0.5); // Dusty pink
+                      // Mars atmosphere
+                      float horizon = p.y;
+                      vec3 color1 = vec3(0.1, 0.05, 0.03); // Dark mars
+                      vec3 color2 = vec3(0.6, 0.2, 0.1); // Red-brown
+                      vec3 color3 = vec3(0.9, 0.4, 0.2); // Orange-red
+                      vec3 color4 = vec3(0.95, 0.7, 0.5); // Dusty pink
 
-                vec3 sky = mix(color1, color2, smoothstep(-0.3, 0.0, horizon));
-                sky = mix(sky, color3, smoothstep(0.0, 0.3, horizon));
-                sky = mix(sky, color4, smoothstep(0.3, 0.6, horizon));
+                      vec3 sky = mix(color1, color2, smoothstep(-0.3, 0.0, horizon));
+                      sky = mix(sky, color3, smoothstep(0.0, 0.3, horizon));
+                      sky = mix(sky, color4, smoothstep(0.3, 0.6, horizon));
 
-                // Dust storms
-                float dust1 = fbm(p * 5.0 + vec3(time * 0.03, 0.0, 0.0));
-                float dust2 = fbm(p * 10.0 + vec3(time * 0.02, time * 0.01, 0.0));
-                float dustStorm = dust1 * dust2;
+                      // Dust storms
+                      float dust1 = fbm(p * 5.0 + vec3(time * 0.03, 0.0, 0.0));
+                      float dust2 = fbm(p * 10.0 + vec3(time * 0.02, time * 0.01, 0.0));
+                      float dustStorm = dust1 * dust2;
 
-                vec3 dustColor = vec3(0.7, 0.3, 0.15);
-                sky = mix(sky, dustColor, dustStorm * 0.4);
+                      vec3 dustColor = vec3(0.7, 0.3, 0.15);
+                      sky = mix(sky, dustColor, dustStorm * 0.4);
 
-                // Sparse stars
-                vec3 starField = stars(p, 800.0, 0.8) * smoothstep(0.2, -0.2, horizon);
+                      // Sparse stars
+                      vec3 starField = stars(p, 800.0, 0.8) * smoothstep(0.2, -0.2, horizon);
 
-                vec3 finalColor = sky * 1.4 + starField;
-                gl_FragColor = vec4(finalColor, opacity);
-              }
-            `,
+                      vec3 finalColor = sky * 1.4 + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
           },
           jupiter: {
             uniforms: {
@@ -1581,47 +1614,47 @@
               opacity: { value: skyboxEnabled ? 1.0 : 0 },
             },
             vertexShader: `
-              varying vec3 vPosition;
-              void main() {
-                vPosition = position;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-              }
-            `,
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
             fragmentShader: `
-              uniform float time;
-              uniform float opacity;
-              varying vec3 vPosition;
-              ${noiseFunc}
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
 
-              void main() {
-                vec3 p = normalize(vPosition);
+                    void main() {
+                      vec3 p = normalize(vPosition);
 
-                // Jovian atmosphere with bands
-                float bands = sin(p.y * 20.0 + fbm(p * 3.0) * 2.0);
-                float turbulence = fbm(p * 6.0 + vec3(time * 0.02, 0.0, 0.0));
+                      // Jovian atmosphere with bands
+                      float bands = sin(p.y * 20.0 + fbm(p * 3.0) * 2.0);
+                      float turbulence = fbm(p * 6.0 + vec3(time * 0.02, 0.0, 0.0));
 
-                vec3 color1 = vec3(0.3, 0.2, 0.15); // Dark brown
-                vec3 color2 = vec3(0.7, 0.5, 0.35); // Tan
-                vec3 color3 = vec3(0.9, 0.7, 0.5); // Light tan
-                vec3 color4 = vec3(0.95, 0.85, 0.7); // Cream
+                      vec3 color1 = vec3(0.3, 0.2, 0.15); // Dark brown
+                      vec3 color2 = vec3(0.7, 0.5, 0.35); // Tan
+                      vec3 color3 = vec3(0.9, 0.7, 0.5); // Light tan
+                      vec3 color4 = vec3(0.95, 0.85, 0.7); // Cream
 
-                vec3 atmosphere = mix(color1, color2, smoothstep(-1.0, 0.0, bands));
-                atmosphere = mix(atmosphere, color3, smoothstep(0.0, 0.5, bands));
-                atmosphere = mix(atmosphere, color4, turbulence * 0.6);
+                      vec3 atmosphere = mix(color1, color2, smoothstep(-1.0, 0.0, bands));
+                      atmosphere = mix(atmosphere, color3, smoothstep(0.0, 0.5, bands));
+                      atmosphere = mix(atmosphere, color4, turbulence * 0.6);
 
-                // Great Red Spot effect
-                vec2 spotPos = vec2(p.x * 3.0, p.y * 2.0);
-                float spot = smoothstep(0.8, 0.3, length(spotPos - vec2(0.5, 0.0)));
-                vec3 spotColor = vec3(0.9, 0.4, 0.3);
-                atmosphere = mix(atmosphere, spotColor, spot * 0.7);
+                      // Great Red Spot effect
+                      vec2 spotPos = vec2(p.x * 3.0, p.y * 2.0);
+                      float spot = smoothstep(0.8, 0.3, length(spotPos - vec2(0.5, 0.0)));
+                      vec3 spotColor = vec3(0.9, 0.4, 0.3);
+                      atmosphere = mix(atmosphere, spotColor, spot * 0.7);
 
-                // Stars
-                vec3 starField = stars(p, 600.0, 0.6);
+                      // Stars
+                      vec3 starField = stars(p, 600.0, 0.6);
 
-                vec3 finalColor = atmosphere * 1.5 + starField;
-                gl_FragColor = vec4(finalColor, opacity);
-              }
-            `,
+                      vec3 finalColor = atmosphere * 1.5 + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
           },
           saturn: {
             uniforms: {
@@ -1629,47 +1662,47 @@
               opacity: { value: skyboxEnabled ? 1.0 : 0 },
             },
             vertexShader: `
-              varying vec3 vPosition;
-              void main() {
-                vPosition = position;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-              }
-            `,
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
             fragmentShader: `
-              uniform float time;
-              uniform float opacity;
-              varying vec3 vPosition;
-              ${noiseFunc}
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
 
-              void main() {
-                vec3 p = normalize(vPosition);
+                    void main() {
+                      vec3 p = normalize(vPosition);
 
-                // Saturn's pale atmosphere
-                float horizon = p.y;
-                float bands = sin(p.y * 15.0 + fbm(p * 2.0) * 1.5);
+                      // Saturn's pale atmosphere
+                      float horizon = p.y;
+                      float bands = sin(p.y * 15.0 + fbm(p * 2.0) * 1.5);
 
-                vec3 color1 = vec3(0.4, 0.35, 0.25); // Pale brown
-                vec3 color2 = vec3(0.7, 0.6, 0.45); // Tan
-                vec3 color3 = vec3(0.9, 0.8, 0.6); // Cream
-                vec3 color4 = vec3(0.95, 0.9, 0.8); // Pale cream
+                      vec3 color1 = vec3(0.4, 0.35, 0.25); // Pale brown
+                      vec3 color2 = vec3(0.7, 0.6, 0.45); // Tan
+                      vec3 color3 = vec3(0.9, 0.8, 0.6); // Cream
+                      vec3 color4 = vec3(0.95, 0.9, 0.8); // Pale cream
 
-                vec3 atmosphere = mix(color1, color2, smoothstep(-0.5, 0.0, bands));
-                atmosphere = mix(atmosphere, color3, smoothstep(0.0, 0.5, bands));
+                      vec3 atmosphere = mix(color1, color2, smoothstep(-0.5, 0.0, bands));
+                      atmosphere = mix(atmosphere, color3, smoothstep(0.0, 0.5, bands));
 
-                float turbulence = fbm(p * 5.0 + vec3(time * 0.01, 0.0, 0.0));
-                atmosphere = mix(atmosphere, color4, turbulence * 0.5);
+                      float turbulence = fbm(p * 5.0 + vec3(time * 0.01, 0.0, 0.0));
+                      atmosphere = mix(atmosphere, color4, turbulence * 0.5);
 
-                // Ring shadow effect
-                float ringShadow = smoothstep(0.2, 0.1, abs(horizon)) * 0.4;
-                atmosphere *= (1.0 - ringShadow);
+                      // Ring shadow effect
+                      float ringShadow = smoothstep(0.2, 0.1, abs(horizon)) * 0.4;
+                      atmosphere *= (1.0 - ringShadow);
 
-                // Stars
-                vec3 starField = stars(p, 700.0, 0.7);
+                      // Stars
+                      vec3 starField = stars(p, 700.0, 0.7);
 
-                vec3 finalColor = atmosphere * 1.4 + starField;
-                gl_FragColor = vec4(finalColor, opacity);
-              }
-            `,
+                      vec3 finalColor = atmosphere * 1.4 + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
           },
           "deep-space": {
             uniforms: {
@@ -1677,45 +1710,45 @@
               opacity: { value: skyboxEnabled ? 1.0 : 0 },
             },
             vertexShader: `
-              varying vec3 vPosition;
-              void main() {
-                vPosition = position;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-              }
-            `,
+                    varying vec3 vPosition;
+                    void main() {
+                      vPosition = position;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                  `,
             fragmentShader: `
-              uniform float time;
-              uniform float opacity;
-              varying vec3 vPosition;
-              ${noiseFunc}
+                    uniform float time;
+                    uniform float opacity;
+                    varying vec3 vPosition;
+                    ${noiseFunc}
 
-              void main() {
-                vec3 p = normalize(vPosition);
+                    void main() {
+                      vec3 p = normalize(vPosition);
 
-                // Deep space with cosmic microwave background
-                float n = fbm(p * 1.5);
-                vec3 bg = vec3(0.05, 0.02, 0.1) * (1.0 + n * 0.3);
+                      // Deep space with cosmic microwave background
+                      float n = fbm(p * 1.5);
+                      vec3 bg = vec3(0.05, 0.02, 0.1) * (1.0 + n * 0.3);
 
-                // Distant nebulae
-                float nebula1 = fbm(p * 3.0 + vec3(time * 0.01, 0.0, 0.0));
-                float nebula2 = fbm(p * 5.0 - vec3(0.0, time * 0.02, 0.0));
-                vec3 nebulaColor = vec3(0.3, 0.15, 0.4) * nebula1 * nebula2 * 0.8;
+                      // Distant nebulae
+                      float nebula1 = fbm(p * 3.0 + vec3(time * 0.01, 0.0, 0.0));
+                      float nebula2 = fbm(p * 5.0 - vec3(0.0, time * 0.02, 0.0));
+                      vec3 nebulaColor = vec3(0.3, 0.15, 0.4) * nebula1 * nebula2 * 0.8;
 
-                // Ultra-dense star field with multiple layers
-                vec3 starField = stars(p, 400.0, 4.0);
-                starField += stars(p, 800.0, 3.0);
-                starField += stars(p, 1600.0, 2.0);
-                starField += stars(p, 3200.0, 1.5);
-                starField += stars(p, 6400.0, 1.0);
+                      // Ultra-dense star field with multiple layers
+                      vec3 starField = stars(p, 400.0, 4.0);
+                      starField += stars(p, 800.0, 3.0);
+                      starField += stars(p, 1600.0, 2.0);
+                      starField += stars(p, 3200.0, 1.5);
+                      starField += stars(p, 6400.0, 1.0);
 
-                // Color variation for stars
-                vec3 starTint = mix(vec3(1.0), vec3(0.8, 0.9, 1.0), hash(p * 100.0));
-                starField *= starTint;
+                      // Color variation for stars
+                      vec3 starTint = mix(vec3(1.0), vec3(0.8, 0.9, 1.0), hash(p * 100.0));
+                      starField *= starTint;
 
-                vec3 finalColor = bg + nebulaColor + starField;
-                gl_FragColor = vec4(finalColor, opacity);
-              }
-            `,
+                      vec3 finalColor = bg + nebulaColor + starField;
+                      gl_FragColor = vec4(finalColor, opacity);
+                    }
+                  `,
           },
         };
 
@@ -2057,6 +2090,10 @@
       let randomBgInterval = 30; // seconds
       let randomBgTimer = null;
 
+      // CSD Recording variables
+      let csdRecording = false;
+      let csdRecordingStartTime = 0;
+
       const bPhrygian = [
         47, 48, 50, 52, 54, 55, 57, 59, 60, 62, 64, 66, 67, 69, 71, 72, 74, 76,
         78, 79, 81, 83,
@@ -2087,710 +2124,862 @@
       }
 
       const orc = `
-      sr = 44100
-      ksmps = 32
-      nchnls = 2
-      0dbfs = 1
-      seed 0
+            sr = 44100
+            ksmps = 32
+            nchnls = 2
+            0dbfs = 1
+            seed 0
 
-      gkMasterFade init 0
-      gkMasterVol init 1
-      gkDryLevel init 1
-      gkKillSwitch init 1
-      gaMasterL init 0
-      gaMasterR init 0
+            gkMasterFade init 0
+            gkMasterVol init 1
+            gkDryLevel init 1
+            gkKillSwitch init 1
+            gaMasterL init 0
+            gaMasterR init 0
 
-      gaRvbL init 0
-      gaRvbR init 0
-      gaEchoL init 0
-      gaEchoR init 0
-      gaBellShimL init 0
-      gaBellShimR init 0
-      gaPwmRvbL init 0
-      gaPwmRvbR init 0
-      gaFofRvbL init 0
-      gaFofRvbR init 0
-      gaFluteRvbL init 0
-      gaFluteRvbR init 0
-      gaCelloRvbL init 0
-      gaCelloRvbR init 0
-      gaAmbienceL init 0
-      gaAmbienceR init 0
-      gaCricketDelL init 0
-      gaCricketDelR init 0
-      gaShimmerL init 0
-      gaShimmerR init 0
-      gaEchoL init 0
-      gaEchoR init 0
+            gaRvbL init 0
+            gaRvbR init 0
+            gaEchoL init 0
+            gaEchoR init 0
+            gaBellShimL init 0
+            gaBellShimR init 0
+            gaPwmRvbL init 0
+            gaPwmRvbR init 0
+            gaFofRvbL init 0
+            gaFofRvbR init 0
+            gaFluteRvbL init 0
+            gaFluteRvbR init 0
+            gaCelloRvbL init 0
+            gaCelloRvbR init 0
+            gaAmbienceL init 0
+            gaAmbienceR init 0
+            gaCricketDelL init 0
+            gaCricketDelR init 0
+            gaShimmerL init 0
+            gaShimmerR init 0
+            gaEchoL init 0
+            gaEchoR init 0
 
-      instr FM
-      iFreq = cpsmidinn(p4)
-      iAmpBase = p5
-      kVol chnget "vol_fm"
-      kAmp = iAmpBase * kVol
-      iDur = p3
-      iModRatio random 2, 5
-      iModIndex random 3.5, 8.0
-      kEnv expsegr 0.001, 0.01, 1, iDur * 0.15, 0.3, iDur * 0.25, 0.08, 0.05, 0.001
-      kAmpLfo lfo 0.08, random:i(0.2, 0.5)
-      kAmpMod = 0.92 + kAmpLfo
-      aModEnv expsegr 0.001, 0.005, 1, iDur * 0.1, 0.2, iDur * 0.15, 0.05, 0.03, 0.001
-      aMod poscil iModIndex * aModEnv * iFreq, iFreq * iModRatio
-      aCar poscil kAmp * kEnv * kAmpMod, iFreq + aMod
-      aFilt tone aCar, 12000
-      iPanCenter random 0.3, 0.7
-      kPanLfo lfo 0.15, random:i(0.05, 0.12)
-      kPan = iPanCenter + kPanLfo
-      chnset kPan, "pan_fm"
-      kRms rms aFilt
-      chnset kRms * 10, "rms_fm"
-      aL, aR pan2 aFilt, kPan
-      aLDelay vdelay aL, 0.5, 5
-      aRDelay vdelay aR, 0.7, 5
-      aLWide = aL + aRDelay * 0.2
-      aRWide = aR + aLDelay * 0.2
-      aLWide limit aLWide, -0.98, 0.98
-      aRWide limit aRWide, -0.98, 0.98
-      gaRvbL = gaRvbL + aLWide * 0.3
-      gaRvbR = gaRvbR + aRWide * 0.3
-      outs aLWide * 0.4 * gkMasterFade * gkDryLevel, aRWide * 0.4 * gkMasterFade * gkDryLevel
+            instr FM
+            iFreq = cpsmidinn(p4)
+            iAmpBase = p5
+            kVol chnget "vol_fm"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iModRatio random 2, 5
+            iModIndex random 3.5, 8.0
+            kEnv expsegr 0.001, 0.01, 1, iDur * 0.15, 0.3, iDur * 0.25, 0.08, 0.05, 0.001
+            kAmpLfo lfo 0.08, random:i(0.2, 0.5)
+            kAmpMod = 0.92 + kAmpLfo
+            aModEnv expsegr 0.001, 0.005, 1, iDur * 0.1, 0.2, iDur * 0.15, 0.05, 0.03, 0.001
+            aMod poscil iModIndex * aModEnv * iFreq, iFreq * iModRatio
+            aCar poscil kAmp * kEnv * kAmpMod, iFreq + aMod
+            aFilt tone aCar, 12000
+            iPanCenter random 0.3, 0.7
+            kPanLfo lfo 0.15, random:i(0.05, 0.12)
+            kPan = iPanCenter + kPanLfo
+            chnset kPan, "pan_fm"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_fm"
+            aL, aR pan2 aFilt, kPan
+            aLDelay vdelay aL, 0.5, 5
+            aRDelay vdelay aR, 0.7, 5
+            aLWide = aL + aRDelay * 0.2
+            aRWide = aR + aLDelay * 0.2
+            aLWide limit aLWide, -0.98, 0.98
+            aRWide limit aRWide, -0.98, 0.98
+            gaRvbL = gaRvbL + aLWide * 0.3
+            gaRvbR = gaRvbR + aRWide * 0.3
+            outs aLWide * 0.4 * gkMasterFade * gkDryLevel, aRWide * 0.4 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Drone
+            iFreq1 = cpsmidinn(p4)
+            iFreq2 = cpsmidinn(p5)
+            iFreq3 = cpsmidinn(p6)
+            iAmpBase = p7
+            kVol chnget "vol_drone"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iModRatio random 1, 2
+            iModIndex random 0.3, 1.2
+            kEnv linsegr 0, iDur * 0.4, 1, iDur * 0.3, 0.95, iDur * 0.2, 0.8, iDur * 0.1, 0
+            kAmpLfo lfo 0.25, random:i(0.03, 0.08)
+            kAmpMod = 0.75 + kAmpLfo
+            kLfo lfo 0.15, random:i(0.05, 0.15), 0
+            aModEnv1 linseg 1, iDur * 0.5, 0.6, iDur * 0.5, 0.4
+            aMod1 poscil (iModIndex + kLfo) * aModEnv1 * iFreq1, iFreq1 * iModRatio
+            aCar1 poscil kAmp * kEnv * kAmpMod * 0.35, iFreq1 + aMod1
+            aModEnv2 linseg 0.8, iDur * 0.4, 1, iDur * 0.6, 0.5
+            aMod2 poscil (iModIndex + kLfo * 0.8) * aModEnv2 * iFreq2, iFreq2 * (iModRatio * 1.1)
+            aCar2 poscil kAmp * kEnv * kAmpMod * 0.3, iFreq2 + aMod2
+            aModEnv3 linseg 0.9, iDur * 0.6, 0.7, iDur * 0.4, 0.6
+            aMod3 poscil (iModIndex + kLfo * 1.2) * aModEnv3 * iFreq3, iFreq3 * (iModRatio * 0.9)
+            aCar3 poscil kAmp * kEnv * kAmpMod * 0.28, iFreq3 + aMod3
+            aMix = aCar1 + aCar2 + aCar3
+            kPanLfo lfo 0.2, random:i(0.04, 0.1)
+            kPan = 0.5 + kPanLfo
+            chnset kPan, "pan_drone"
+            kRms rms aMix
+            chnset kRms * 10, "rms_drone"
+            aL, aR pan2 aMix, kPan
+            aLDelay vdelay aL, 0.8, 8
+            aRDelay vdelay aR, 1.1, 8
+            aLWide = aL + aRDelay * 0.25
+            aRWide = aR + aLDelay * 0.25
+            aLWide limit aLWide, -0.98, 0.98
+            aRWide limit aRWide, -0.98, 0.98
+            gaRvbL = gaRvbL + aLWide * 0.6
+            gaRvbR = gaRvbR + aRWide * 0.6
+            outs aLWide * 0.25 * gkMasterFade * gkDryLevel, aRWide * 0.25 * gkMasterFade * gkDryLevel
+            endin
+
+            instr NoiseSwell
+            iAmpBase = p4
+            kVol chnget "vol_noise"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linseg 0, iDur * 0.55, 1, iDur * 0.1, 0.9, iDur * 0.35, 0
+            aNoise pinkish 1
+            kCf lfo 80, random:i(0.03, 0.08)
+            kCf = kCf + 150
+            aFilt lpf18 aNoise, kCf, 0.3, 0.5
+            aFilt = aFilt * kAmp * kEnv
+            iPanStart random 0.2, 0.8
+            iPanEnd random 0.2, 0.8
+            kPan linseg iPanStart, iDur, iPanEnd
+            chnset kPan, "pan_noise"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_noise"
+            aL, aR pan2 aFilt, kPan
+            aL = aL * 2.0
+            aR = aR * 2.0
+            gaRvbL = gaRvbL + aL * 0.5
+            gaRvbR = gaRvbR + aR * 0.5
+            outs aL * 2.0 * gkMasterFade * gkDryLevel, aR * 2.0 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Rumble
+            iAmpBase = p4
+            kVol chnget "vol_rumble"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linseg 0, iDur * 0.4, 1, iDur * 0.2, 0.9, iDur * 0.4, 0
+            kLfo1 lfo random:i(15, 35), random:i(0.1, 0.25)
+            kLfo2 lfo random:i(20, 45), random:i(0.08, 0.2)
+            kLfo3 lfo random:i(10, 30), random:i(0.12, 0.3)
+            kLfo4 lfo random:i(25, 50), random:i(0.15, 0.35)
+            aOsc1 poscil kAmp * kEnv * 0.3, 35 + kLfo1
+            aOsc2 poscil kAmp * kEnv * 0.3, 42 + kLfo2
+            aOsc3 poscil kAmp * kEnv * 0.25, 28 + kLfo3
+            aOsc4 poscil kAmp * kEnv * 0.15, 55 + kLfo4
+            aMix = aOsc1 + aOsc2 + aOsc3 + aOsc4
+            aMix butterlp aMix, 120
+            aMix = aMix * 1.5
+            aMix tanh aMix
+            iPanStart random 0.2, 0.8
+            iPanEnd random 0.2, 0.8
+            kPan linseg iPanStart, iDur, iPanEnd
+            chnset kPan, "pan_rumble"
+            kRms rms aMix
+            chnset kRms * 10, "rms_rumble"
+            aL, aR pan2 aMix, kPan
+            gaRvbL = gaRvbL + aL * 0.6
+            gaRvbR = gaRvbR + aR * 0.6
+            outs aL * 1.5 * gkMasterFade * gkDryLevel, aR * 1.5 * gkMasterFade * gkDryLevel
+            endin
+
+            instr BellChord
+            iNote1 = p4
+            iNote2 = p5
+            iNote3 = p6
+            iAmpBase = p7
+            kVol chnget "vol_bellchord"
+            kAmp = iAmpBase * kVol * 0.5
+            iDur = p3
+            iFreq1 = cpsmidinn(iNote1)
+            iFreq2 = cpsmidinn(iNote2)
+            iFreq3 = cpsmidinn(iNote3)
+            kEnv linsegr 0, 0.02, 1, iDur - 0.05, 0.95, 0.03, 0
+            iModRat1 random 3, 5
+            iModRat2 random 3.5, 5.5
+            iModRat3 random 3.2, 5.2
+            iModIdx random 0.5, 1.5
+            kModEnv expseg 1, 0.05, 0.3, iDur - 0.05, 0.1
+            aMod1 poscil iModIdx * kModEnv * iFreq1, iFreq1 * iModRat1
+            aBell1 poscil kAmp * kEnv * 0.25, iFreq1 + aMod1
+            aMod2 poscil iModIdx * kModEnv * iFreq2, iFreq2 * iModRat2
+            aBell2 poscil kAmp * kEnv * 0.25, iFreq2 + aMod2
+            aMod3 poscil iModIdx * kModEnv * iFreq3, iFreq3 * iModRat3
+            aBell3 poscil kAmp * kEnv * 0.2, iFreq3 + aMod3
+            aMix = aBell1 + aBell2 + aBell3
+            aFilt tone aMix, 8000
+            kPanLfo lfo 0.45, random:i(0.2, 0.5)
+            kPan = 0.5 + kPanLfo
+            chnset kPan, "pan_bellchord"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_bellchord"
+            aL, aR pan2 aFilt, kPan
+            aL = aL * 1.5
+            aR = aR * 1.5
+            gaBellShimL = gaBellShimL + aL * 0.5
+            gaBellShimR = gaBellShimR + aR * 0.5
+            outs aL * 0.2 * gkMasterFade * gkDryLevel, aR * 0.2 * gkMasterFade * gkDryLevel
+            endin
+
+            instr PwmChord
+            iFreq1 = cpsmidinn(p4)
+            iFreq2 = cpsmidinn(p5)
+            iFreq3 = cpsmidinn(p6)
+            iFreq4 = cpsmidinn(p7)
+            iAmpBase = p8
+            kVol chnget "vol_pwm"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linsegr 0, iDur * 0.35, 1, iDur * 0.3, 0.95, iDur * 0.25, 0.7, iDur * 0.1, 0
+            kAmpLfo lfo 0.3, random:i(0.04, 0.09)
+            kAmpMod = 0.7 + kAmpLfo
+            kPw lfo 0.25, random:i(0.3, 0.7)
+            kPw = kPw + 0.5
+            aPw1 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq1, 2, kPw
+            aPw2 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq1 * 1.002, 2, kPw
+            aPw3 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq2, 2, kPw
+            aPw4 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq2 * 0.998, 2, kPw
+            aPw5 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq3, 2, kPw
+            aPw6 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq3 * 1.001, 2, kPw
+            aPw7 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq4, 2, kPw
+            aPw8 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq4 * 0.999, 2, kPw
+            aMix = aPw1 + aPw2 + aPw3 + aPw4 + aPw5 + aPw6 + aPw7 + aPw8
+            aFilt moogladder aMix, 1200, 0.2
+            kPanLfo lfo 0.15, random:i(0.05, 0.12)
+            kPan = 0.5 + kPanLfo
+            chnset kPan, "pan_pwm"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_pwm"
+            aL, aR pan2 aFilt, kPan
+            gaPwmRvbL = gaPwmRvbL + aL * 0.6
+            gaPwmRvbR = gaPwmRvbR + aR * 0.6
+            outs aL * 0.55 * gkMasterFade * gkDryLevel, aR * 0.55 * gkMasterFade * gkDryLevel
+            endin
+
+
+            instr Flute
+            iFreq = cpsmidinn(p4)
+            iAmpBase = p5
+            kVol chnget "vol_flute"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linsegr 0, 0.05, 1, iDur - 0.1, 0.9, 0.05, 0
+            kAmpLfo lfo 0.2, random:i(0.1, 0.2)
+            kAmpMod = 0.8 + kAmpLfo
+            iVibRate random 4.5, 6.5
+            iVibDepth random 0.008, 0.015
+            kVib lfo iVibDepth, iVibRate
+            aNoise rand 0.1
+            kNoiseEnv expseg 1, 0.08, 0.01, iDur - 0.08, 0.01
+            aBreath = aNoise * kNoiseEnv * kAmp * kAmpMod * 0.3
+            aBreath butterlp aBreath, iFreq * 3
+            aFlute1 poscil kAmp * kEnv * kAmpMod * 0.4, iFreq * (1 + kVib)
+            aFlute2 poscil kAmp * kEnv * kAmpMod * 0.35, iFreq * 1.003 * (1 + kVib * 0.9)
+            aFlute3 poscil kAmp * kEnv * kAmpMod * 0.3, iFreq * 0.997 * (1 + kVib * 1.1)
+            aMix = aFlute1 + aFlute2 + aFlute3 + aBreath
+            aFilt tone aMix, 4000
+            iPanCenter random 0.3, 0.7
+            kPanLfo lfo 0.2, random:i(0.08, 0.15)
+            kPan = iPanCenter + kPanLfo
+            chnset kPan, "pan_flute"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_flute"
+            aL, aR pan2 aFilt, kPan
+            gaFluteRvbL = gaFluteRvbL + aL * 0.7
+            gaFluteRvbR = gaFluteRvbR + aR * 0.7
+            outs aL * 0.3 * gkMasterFade * gkDryLevel, aR * 0.3 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Cello
+            iFreq = cpsmidinn(p4) * 0.5
+            iAmpBase = p5
+            kVol chnget "vol_cello"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linsegr 0, 1.5, 1, iDur - 2.5, 0.98, 1, 0
+            iVibRate random 4, 5.5
+            iVibDepth random 0.004, 0.007
+            kVib lfo iVibDepth, iVibRate
+            kPwmLfo lfo 0.15, random:i(0.08, 0.15)
+            kPwm = 0.5 + kPwmLfo
+            aSaw1 vco2 kAmp * kEnv * 0.18, iFreq * (1 + kVib), 0
+            aSaw2 vco2 kAmp * kEnv * 0.18, iFreq * 1.007 * (1 + kVib * 0.98), 0
+            aSaw3 vco2 kAmp * kEnv * 0.18, iFreq * 0.993 * (1 + kVib * 1.02), 0
+            aSaw4 vco2 kAmp * kEnv * 0.17, iFreq * 1.012 * (1 + kVib), 0
+            aSaw5 vco2 kAmp * kEnv * 0.17, iFreq * 0.988 * (1 + kVib * 0.97), 0
+            aPw1 vco2 kAmp * kEnv * 0.12, iFreq * 1.003 * (1 + kVib), 2, kPwm
+            aPw2 vco2 kAmp * kEnv * 0.12, iFreq * 0.997 * (1 + kVib * 1.01), 2, kPwm
+            aMix = aSaw1 + aSaw2 + aSaw3 + aSaw4 + aSaw5 + aPw1 + aPw2
+            aFilt moogladder aMix, 600 + kEnv * 800, 0.3
+            aFilt butterlp aFilt, 1200
+            aFilt tone aFilt, 1800
+            iPan random 0.45, 0.55
+            chnset iPan, "pan_cello"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_cello"
+            aL, aR pan2 aFilt, iPan
+            gaCelloRvbL = gaCelloRvbL + aL * 1.1
+            gaCelloRvbR = gaCelloRvbR + aR * 1.1
+            outs aL * 0.55 * gkMasterFade * gkDryLevel, aR * 0.55 * gkMasterFade * gkDryLevel
+            endin
+
+            instr LowThunder
+            iAmpBase = p4
+            kVol chnget "vol_thunder"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv expseg 1, 0.1, 0.8, 0.3, 0.6, iDur - 0.4, 0.001
+            aPink pinkish 1
+            kSubCf expseg 80, 0.2, 30, iDur - 0.2, 12
+            aSub butterlp aPink, kSubCf
+            aSub = aSub * 4
+            kMidCf expseg 180, 0.25, 70, iDur - 0.25, 25
+            aMid butterlp aPink, kMidCf
+            aMid = aMid * 1.2
+            aMix = (aSub * 5 + aMid * 2) * kEnv * kAmp
+            aMix tanh aMix * 1.3
+            aMix limit aMix, -0.85, 0.85
+            iPanStart random 0.2, 0.8
+            iPanEnd random 0.2, 0.8
+            kPan linseg iPanStart, iDur, iPanEnd
+            chnset kPan, "pan_thunder"
+            kRms rms aMix
+            chnset kRms * 10, "rms_thunder"
+            aL, aR pan2 aMix, kPan
+            aL = aL * 0.6
+            aR = aR * 0.6
+            gaRvbL = gaRvbL + aL * 0.4
+            gaRvbR = gaRvbR + aR * 0.4
+            outs aL * 0.35 * gkMasterFade * gkDryLevel, aR * 0.35 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Cricket
+            iAmpBase = p4
+            kVol chnget "vol_cricket"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iFreq random 4500, 8500
+            iFadeIn random 0.02, 0.08
+            iFadeOut random 0.02, 0.08
+            kEnv linseg 0, iFadeIn, 1, iDur - iFadeIn - iFadeOut, 1, iFadeOut, 0
+            kChirp lfo 1, random:i(30, 60), 0
+            kChirp = (kChirp + 1) * 0.5
+            kFreqMod lfo random:i(200, 600), random:i(8, 15)
+            aNoise rand 0.65
+            aChirp butterbp aNoise, iFreq + kFreqMod, iFreq * 0.25
+            aChirp = aChirp * kChirp * kEnv * kAmp
+            aChirp butterhp aChirp, 3500
+            aChirp tone aChirp, 9000
+            iPanStart random 0, 1
+            iPanEnd random 0, 1
+            iPanMid random 0, 1
+            kPanLfo1 lfo 0.4, random:i(0.3, 0.8)
+            kPanLfo2 lfo 0.3, random:i(0.5, 1.2), 0.25
+            kPan linseg iPanStart, iDur * 0.33, iPanMid, iDur * 0.33, iPanEnd, iDur * 0.34, iPanStart
+            kPan = kPan + kPanLfo1 + kPanLfo2
+            kPan limit kPan, 0, 1
+            chnset kPan, "pan_cricket"
+            kRms rms aChirp
+            chnset kRms * 10, "rms_cricket"
+            aL, aR pan2 aChirp, kPan
+            gaCricketDelL = gaCricketDelL + aL * 0.95
+            gaCricketDelR = gaCricketDelR + aR * 0.95
+            gaAmbienceL = gaAmbienceL + aL * 0.7
+            gaAmbienceR = gaAmbienceR + aR * 0.7
+            outs aL * 1.8 * gkMasterFade * gkDryLevel, aR * 1.8 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Bird
+            iAmpBase = p4
+            kVol chnget "vol_bird"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iStartFreq random 1000, 4000
+            iEndFreq random 800, 4500
+            kEnv expseg 0.001, 0.01, 1, iDur - 0.01, 0.01
+            kFreq expseg iStartFreq, iDur * 0.3, iEndFreq, iDur * 0.7, iEndFreq * 0.8
+            iModRatio random 2, 4
+            iModIndex random 1, 3
+            aMod poscil iModIndex * kFreq, kFreq * iModRatio
+            aBird poscil kAmp * kEnv, kFreq + aMod
+            aNoise rand 0.15
+            aNoise butterbp aNoise, kFreq, kFreq * 0.5
+            aBird = aBird + aNoise * kEnv
+            aBird tone aBird, 7000
+            iPanStart random 0, 1
+            iPanEnd random 0, 1
+            kPan linseg iPanStart, iDur, iPanEnd
+            chnset kPan, "pan_bird"
+            kRms rms aBird
+            chnset kRms * 10, "rms_bird"
+            aL, aR pan2 aBird, kPan
+            gaAmbienceL = gaAmbienceL + aL * 0.7
+            gaAmbienceR = gaAmbienceR + aR * 0.7
+            outs aL * 0.35 * gkMasterFade * gkDryLevel, aR * 0.35 * gkMasterFade * gkDryLevel
+            endin
+
+            instr WaterDrip
+            iAmpBase = p4
+            kVol chnget "vol_water"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iDropFreq random 1200, 2800
+            iModFreq random 3000, 5000
+            kEnv expseg 1, 0.003, 0.6, 0.02, 0.3, iDur - 0.023, 0.001
+            aDrip poscil kAmp * kEnv, iDropFreq + (iModFreq * kEnv * 0.3)
+            aDrip butterbp aDrip, iDropFreq, iDropFreq * 1.8
+            aClick rand kAmp * kEnv * 0.2
+            aClick butterhp aClick, 4000
+            aDrop = aDrip + aClick
+            aDrop tone aDrop, 6000
+            iPan random 0.2, 0.8
+            kPan = iPan
+            chnset kPan, "pan_water"
+            kRms rms aDrop
+            chnset kRms * 10, "rms_water"
+            aL, aR pan2 aDrop, kPan
+            gaShimmerL = gaShimmerL + aL * 0.85
+            gaShimmerR = gaShimmerR + aR * 0.85
+            outs aL * 0.12 * gkMasterFade * gkDryLevel, aR * 0.12 * gkMasterFade * gkDryLevel
+            endin
+
+            instr CracklingFire
+            iAmpBase = p4
+            kVol chnget "vol_fire"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kCrackleRate1 lfo 12, random:i(0.8, 3.2), 2
+            kCrackleRate1 = abs(kCrackleRate1) + 5
+            kCrackleRate2 lfo 18, random:i(1.5, 4.5), 0
+            kCrackleRate2 = abs(kCrackleRate2) + 8
+            aCrackle1 dust kAmp * 0.8, kCrackleRate1 * 95
+            aCrackle1 butterbp aCrackle1, random:i(400, 1800), random:i(600, 1200)
+            aCrackle2 dust kAmp * 0.6, kCrackleRate2 * 120
+            aCrackle2 butterbp aCrackle2, random:i(800, 2500), random:i(400, 900)
+            aCrackle3 dust kAmp * 0.4, random:i(60, 150)
+            aCrackle3 butterbp aCrackle3, random:i(200, 600), random:i(300, 700)
+            aCrackle = aCrackle1 + aCrackle2 + aCrackle3
+            kWindRate lfo 1.5, random:i(0.2, 0.6)
+            kWindRate = abs(kWindRate) + 0.5
+            aWind pinker
+            aWind = aWind * kAmp * kWindRate * 0.4
+            aWind butterbp aWind, random:i(200, 800), random:i(300, 600)
+            aWind tone aWind, 1200
+            aAir noise kAmp * 0.25, 0.5
+            aAir butterbp aAir, random:i(500, 2000), random:i(800, 1500)
+            kAirMod lfo 0.6, random:i(0.3, 0.9)
+            aAir = aAir * (kAirMod + 0.4)
+            aRumble rand kAmp * 0.35
+            aRumble tone aRumble, 120
+            aRumble butterlp aRumble, 180
+            aFire = aCrackle + aWind + aAir + aRumble
+            kEnv linsegr 0, iDur * 0.15, 1, iDur * 0.7, 0.9, 0.2, 0
+            aFire = aFire * kEnv
+            kPanLfo1 lfo 0.35, random:i(0.15, 0.45)
+            kPanLfo2 lfo 0.25, random:i(0.25, 0.65), 0.25
+            iPanCenter random 0.35, 0.65
+            kPan = iPanCenter + kPanLfo1 + kPanLfo2 * 0.5
+            kPan limit kPan, 0.05, 0.95
+            chnset kPan, "pan_fire"
+            kRms rms aFire
+            chnset kRms * 10, "rms_fire"
+            aL, aR pan2 aFire, kPan
+            gaEchoL = gaEchoL + aL * 0.6
+            gaEchoR = gaEchoR + aR * 0.6
+            outs aL * 0.65 * gkMasterFade * gkDryLevel, aR * 0.65 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Marimba
+            iFreq = cpsmidinn(p4)
+            iAmpBase = p5
+            kVol chnget "vol_marimba"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iModRatio random 1.5, 2.8
+            iModIndex random 1.2, 2.8
+            kEnv expsegr 0.001, 0.003, 1, iDur * 0.08, 0.25, iDur * 0.12, 0.08, 0.04, 0.001
+            aModEnv expsegr 0.001, 0.002, 1, iDur * 0.05, 0.15, iDur * 0.08, 0.03, 0.02, 0.001
+            aMod poscil iModIndex * aModEnv * iFreq, iFreq * iModRatio
+            aCar poscil kAmp * kEnv, iFreq + aMod
+            aFilt tone aCar, 3500
+            aFilt butterlp aFilt, 2800
+            iPan random 0.25, 0.75
+            chnset iPan, "pan_marimba"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_marimba"
+            aL, aR pan2 aFilt, iPan
+            aLDelay vdelay aL, 0.4, 4
+            aRDelay vdelay aR, 0.6, 4
+            aLWide = aL + aRDelay * 0.18
+            aRWide = aR + aLDelay * 0.18
+            aLWide limit aLWide, -0.98, 0.98
+            aRWide limit aRWide, -0.98, 0.98
+            gaRvbL = gaRvbL + aLWide * 0.25
+            gaRvbR = gaRvbR + aRWide * 0.25
+            outs aLWide * 0.35 * gkMasterFade * gkDryLevel, aRWide * 0.35 * gkMasterFade * gkDryLevel
+            endin
+
+            instr GlobalFadeIn
+            gkMasterFade init 0
+            gkReverbFade init 0
+            if gkMasterFade < 1 then
+            gkMasterFade = gkMasterFade + (1.0 / (8.0 * kr))
+            gkMasterFade limit gkMasterFade, 0, 1
+            endif
+            if timeinsts() > 1 && gkReverbFade < 1 then
+            gkReverbFade = gkReverbFade + (1.0 / (6.0 * kr))
+            gkReverbFade limit gkReverbFade, 0, 1
+            endif
+            gkMasterVol chnget "vol_effect"
+            gkDryLevel chnget "vol_dry"
+            endin
+
+            instr MasterVolumeInit
+            chnset 1, "vol_effect"
+            chnset 1, "vol_dry"
+            chnset 1, "kill_switch"
+            endin
+
+            instr KillSwitch
+            gkKillSwitch chnget "kill_switch"
+            if gkKillSwitch < 0.01 then
+            turnoff2 "FM", 2, 0
+            turnoff2 "Drone", 2, 0
+            turnoff2 "NoiseSwell", 2, 0
+            turnoff2 "Rumble", 2, 0
+            turnoff2 "BellChord", 2, 0
+            turnoff2 "PwmChord", 2, 0
+            turnoff2 "LowThunder", 2, 0
+            turnoff2 "Flute", 2, 0
+            turnoff2 "Cello", 2, 0
+            turnoff2 "Cricket", 2, 0
+            turnoff2 "Bird", 2, 0
+            turnoff2 "WaterDrip", 2, 0
+            turnoff2 "CracklingFire", 2, 0
+            turnoff2 "Marimba", 2, 0
+            endif
+            endin
+
+            instr CricketMultitapDelay
+            aInL = gaCricketDelL
+            aInR = gaCricketDelR
+            aPingL delay aInR, 0.11
+            aPongR delay aInL, 0.13
+            aPingL2 delay aPongR, 0.19
+            aPongR2 delay aPingL, 0.21
+            aPingL3 delay aPongR2, 0.31
+            aPongR3 delay aPingL2, 0.37
+            aPingL4 delay aPongR3, 0.47
+            aPongR4 delay aPingL3, 0.53
+            aMixL = aInL + aPingL * 0.7 + aPingL2 * 0.5 + aPingL3 * 0.35 + aPingL4 * 0.2
+            aMixR = aInR + aPongR * 0.7 + aPongR2 * 0.5 + aPongR3 * 0.35 + aPongR4 * 0.2
+            aMixL butterlp aMixL, 7000
+            aMixR butterlp aMixR, 7000
+            aRvbL, aRvbR reverbsc aMixL, aMixR, 0.94, 10000
+            aRvbL tone aRvbL, 6000
+            aRvbR tone aRvbR, 6000
+            kMaster chnget "vol_effect"
+            outs (aMixL * 0.3 + aRvbL * 0.8) * kMaster * gkReverbFade, (aMixR * 0.3 + aRvbR * 0.8) * kMaster * gkReverbFade
+            clear gaCricketDelL, gaCricketDelR
+            endin
+
+            instr Echo
+            aInL = gaEchoL
+            aInR = gaEchoR
+            aDelL init 0
+            aDelR init 0
+            aDelL delay aInL + aDelL*0.55, 0.47
+            aDelR delay aInR + aDelR*0.6, 0.53
+            aDelL tone aDelL, 3000
+            aDelR tone aDelR, 3000
+            kMaster chnget "vol_effect"
+            outs aDelL * 0.2 * kMaster, aDelR * 0.2 * kMaster
+            clear gaEchoL, gaEchoR
+            endin
+
+            instr BellShimmer
+            aInL = gaBellShimL
+            aInR = gaBellShimR
+            aShiftL1 poscil aInL * 0.4, 1.03, -1
+            aShiftL2 poscil aInL * 0.35, 0.97, -1
+            aShiftL3 poscil aInL * 0.3, 1.07, -1
+            aShiftR1 poscil aInR * 0.4, 1.04, -1
+            aShiftR2 poscil aInR * 0.35, 0.96, -1
+            aShiftR3 poscil aInR * 0.3, 1.06, -1
+            aShimL = aInL + aShiftL1 + aShiftL2 + aShiftL3
+            aShimR = aInR + aShiftR1 + aShiftR2 + aShiftR3
+            aDelL init 0
+            aDelR init 0
+            aDelL delay aShimL + aDelR * 0.3, 0.37
+            aDelR delay aShimR + aDelL * 0.3, 0.43
+            aDelL tone aDelL, 6000
+            aDelR tone aDelR, 6000
+            aMixL = aShimL + aDelL * 0.4
+            aMixR = aShimR + aDelR * 0.4
+            aRvbL, aRvbR reverbsc aMixL, aMixR, 0.92, 9000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.7 * kMaster * gkReverbFade, aRvbR * 0.7 * kMaster * gkReverbFade
+            clear gaBellShimL, gaBellShimR
+            endin
+
+            instr PwmFreeverb
+            aRvbL, aRvbR freeverb gaPwmRvbL, gaPwmRvbR, 0.88, 0.5
+            kMaster chnget "vol_effect"
+            outs aRvbL * kMaster * gkReverbFade, aRvbR * kMaster * gkReverbFade
+            clear gaPwmRvbL, gaPwmRvbR
+            endin
+
+            instr FluteNetwork
+            aInL = gaFluteRvbL
+            aInR = gaFluteRvbR
+            aChL1 vdelay aInL, 12 + 3 * lfo:k(1, 0.5), 30
+            aChR1 vdelay aInR, 14 + 3 * lfo:k(1, 0.45), 30
+            aChL2 vdelay aInL, 18 + 2.5 * lfo:k(1, 0.6), 30
+            aChR2 vdelay aInR, 16 + 2.5 * lfo:k(1, 0.55), 30
+            aChL = (aInL + aChL1 * 0.35 + aChL2 * 0.25) * 0.65
+            aChR = (aInR + aChR1 * 0.35 + aChR2 * 0.25) * 0.65
+            aDelL init 0
+            aDelR init 0
+            aDelL delay aChL + aDelR * 0.25, 0.31
+            aDelR delay aChR + aDelL * 0.25, 0.37
+            aDelL tone aDelL, 3500
+            aDelR tone aDelR, 3500
+            aMixL = aChL + aDelL * 0.3
+            aMixR = aChR + aDelR * 0.3
+            aRvbL, aRvbR reverbsc aMixL, aMixR, 0.88, 7000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.65 * kMaster * gkReverbFade, aRvbR * 0.65 * kMaster * gkReverbFade
+            clear gaFluteRvbL, gaFluteRvbR
+            endin
+
+            instr CelloNetwork
+            aInL = gaCelloRvbL
+            aInR = gaCelloRvbR
+            aChL1 vdelay aInL, 18 + 6 * lfo:k(1, 0.35), 50
+            aChR1 vdelay aInR, 20 + 6 * lfo:k(1, 0.32), 50
+            aChL2 vdelay aInL, 26 + 5 * lfo:k(1, 0.48), 50
+            aChR2 vdelay aInR, 24 + 5 * lfo:k(1, 0.44), 50
+            aChL3 vdelay aInL, 32 + 4 * lfo:k(1, 0.52), 50
+            aChR3 vdelay aInR, 30 + 4 * lfo:k(1, 0.5), 50
+            aChL = (aInL + aChL1 * 0.4 + aChL2 * 0.3 + aChL3 * 0.2) * 0.6
+            aChR = (aInR + aChR1 * 0.4 + aChR2 * 0.3 + aChR3 * 0.2) * 0.6
+            aDelL init 0
+            aDelR init 0
+            aDelL delay aChL + aDelR * 0.35, 0.41
+            aDelR delay aChR + aDelL * 0.35, 0.47
+            aDelL tone aDelL, 2800
+            aDelR tone aDelR, 2800
+            aMixL = aChL + aDelL * 0.4
+            aMixR = aChR + aDelR * 0.4
+            aRvbL, aRvbR reverbsc aMixL, aMixR, 0.9, 5000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.7 * kMaster * gkReverbFade, aRvbR * 0.7 * kMaster * gkReverbFade
+            clear gaCelloRvbL, gaCelloRvbR
+            endin
+
+            instr AmbienceReverb
+            aInL = gaAmbienceL
+            aInR = gaAmbienceR
+            aRvbL, aRvbR reverbsc aInL, aInR, 0.93, 10000
+            aRvbL tone aRvbL, 6000
+            aRvbR tone aRvbR, 6000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.5 * kMaster * gkReverbFade, aRvbR * 0.5 * kMaster * gkReverbFade
+            clear gaAmbienceL, gaAmbienceR
+            endin
+
+            instr Reverb
+            aL, aR reverbsc gaRvbL, gaRvbR, 0.85, 8000
+            kMaster chnget "vol_effect"
+            outs aL * kMaster * gkReverbFade, aR * kMaster * gkReverbFade
+            clear gaRvbL, gaRvbR
+            endin
+
+            instr WaterShimmerReverb
+            aL = gaShimmerL
+            aR = gaShimmerR
+            aPitchL, aPitchR reverbsc aL, aR, 0.92, 12000
+            aPitchL = aPitchL * 0.4
+            aPitchR = aPitchR * 0.4
+            aDelL vdelay3 aPitchL, 23, 500
+            aDelR vdelay3 aPitchR, 29, 500
+            aShimL = aPitchL + aDelL * 0.6
+            aShimR = aPitchR + aDelR * 0.6
+            kMaster chnget "vol_effect"
+            outs aShimL * kMaster * gkReverbFade, aShimR * kMaster * gkReverbFade
+            clear gaShimmerL, gaShimmerR
+            endin
+
+            instr FireEcho
+            aL = gaEchoL
+            aR = gaEchoR
+            aDelL vdelay3 aL, 180, 600
+            aDelR vdelay3 aR, 240, 600
+            aFeedL = aL + aDelR * 0.4
+            aFeedR = aR + aDelL * 0.4
+            kMaster chnget "vol_effect"
+            outs aFeedL * 0.5 * kMaster * gkReverbFade, aFeedR * 0.5 * kMaster * gkReverbFade
+            clear gaEchoL, gaEchoR
+            endin
+            `;
+
+      // CSD Recording Functions
+      function generateCsound() {
+        if (!csdRecording) {
+          // Start recording
+          csdRecording = true;
+          csdRecordingStartTime = Date.now();
+
+          const output = document.getElementById("csdOutput");
+
+          // Get current volume settings from sliders
+          const layers = [
+            "fm",
+            "drone",
+            "noise",
+            "rumble",
+            "bellchord",
+            "pwm",
+            "thunder",
+            "flute",
+            "cello",
+            "cricket",
+            "bird",
+            "water",
+            "fire",
+            "marimba",
+          ];
+          let channelInits = "";
+          layers.forEach((layer) => {
+            const slider = document.getElementById(`slider-${layer}`);
+            const vol = slider ? slider.value / 100 : 0.5;
+            channelInits += `chnset ${vol.toFixed(2)}, "vol_${layer}"\n      `;
+          });
+
+          const csdHeader = `<CsoundSynthesizer>
+      <CsOptions>
+      -odac -d -m0
+      </CsOptions>
+      <CsInstruments>
+      ${orc.trim()}
+
+      ; Initialize control channels for standalone playback
+      instr ChannelInit
+            ${channelInits}chnset 1.0, "vol_dry"
+            chnset 1.0, "vol_effect"
+            turnoff
       endin
+      </CsInstruments>
+      <CsScore>
+      ; === RECORDED PERFORMANCE ===
+      ; Started: ${new Date().toISOString()}
 
-      instr Drone
-      iFreq1 = cpsmidinn(p4)
-      iFreq2 = cpsmidinn(p5)
-      iFreq3 = cpsmidinn(p6)
-      iAmpBase = p7
-      kVol chnget "vol_drone"
-      kAmp = iAmpBase * kVol
-      iDur = p3
-      iModRatio random 1, 2
-      iModIndex random 0.3, 1.2
-      kEnv linsegr 0, iDur * 0.4, 1, iDur * 0.3, 0.95, iDur * 0.2, 0.8, iDur * 0.1, 0
-      kAmpLfo lfo 0.25, random:i(0.03, 0.08)
-      kAmpMod = 0.75 + kAmpLfo
-      kLfo lfo 0.15, random:i(0.05, 0.15), 0
-      aModEnv1 linseg 1, iDur * 0.5, 0.6, iDur * 0.5, 0.4
-      aMod1 poscil (iModIndex + kLfo) * aModEnv1 * iFreq1, iFreq1 * iModRatio
-      aCar1 poscil kAmp * kEnv * kAmpMod * 0.35, iFreq1 + aMod1
-      aModEnv2 linseg 0.8, iDur * 0.4, 1, iDur * 0.6, 0.5
-      aMod2 poscil (iModIndex + kLfo * 0.8) * aModEnv2 * iFreq2, iFreq2 * (iModRatio * 1.1)
-      aCar2 poscil kAmp * kEnv * kAmpMod * 0.3, iFreq2 + aMod2
-      aModEnv3 linseg 0.9, iDur * 0.6, 0.7, iDur * 0.4, 0.6
-      aMod3 poscil (iModIndex + kLfo * 1.2) * aModEnv3 * iFreq3, iFreq3 * (iModRatio * 0.9)
-      aCar3 poscil kAmp * kEnv * kAmpMod * 0.28, iFreq3 + aMod3
-      aMix = aCar1 + aCar2 + aCar3
-      kPanLfo lfo 0.2, random:i(0.04, 0.1)
-      kPan = 0.5 + kPanLfo
-      chnset kPan, "pan_drone"
-      kRms rms aMix
-      chnset kRms * 10, "rms_drone"
-      aL, aR pan2 aMix, kPan
-      aLDelay vdelay aL, 0.8, 8
-      aRDelay vdelay aR, 1.1, 8
-      aLWide = aL + aRDelay * 0.25
-      aRWide = aR + aLDelay * 0.25
-      aLWide limit aLWide, -0.98, 0.98
-      aRWide limit aRWide, -0.98, 0.98
-      gaRvbL = gaRvbL + aLWide * 0.6
-      gaRvbR = gaRvbR + aRWide * 0.6
-      outs aLWide * 0.25 * gkMasterFade * gkDryLevel, aRWide * 0.25 * gkMasterFade * gkDryLevel
-      endin
+      ; Initialize control channels first
+      i "ChannelInit" 0 0.01
 
-      instr NoiseSwell
-      iAmpBase = p4
-      kVol chnget "vol_noise"
-      kAmp = iAmpBase * kVol
-      iDur = p3
-      kEnv linseg 0, iDur * 0.55, 1, iDur * 0.1, 0.9, iDur * 0.35, 0
-      aNoise pinkish 1
-      kCf lfo 80, random:i(0.03, 0.08)
-      kCf = kCf + 150
-      aFilt lpf18 aNoise, kCf, 0.3, 0.5
-      aFilt = aFilt * kAmp * kEnv
-      iPanStart random 0.2, 0.8
-      iPanEnd random 0.2, 0.8
-      kPan linseg iPanStart, iDur, iPanEnd
-      chnset kPan, "pan_noise"
-      kRms rms aFilt
-      chnset kRms * 10, "rms_noise"
-      aL, aR pan2 aFilt, kPan
-      aL = aL * 2.0
-      aR = aR * 2.0
-      gaRvbL = gaRvbL + aL * 0.5
-      gaRvbR = gaRvbR + aR * 0.5
-      outs aL * 2.0 * gkMasterFade * gkDryLevel, aR * 2.0 * gkMasterFade * gkDryLevel
-      endin
+      ; Effect instruments (always on)
+      i "GlobalFadeIn" 0 3600
+      i "MasterVolumeInit" 0 0.01
+      i "KillSwitch" 0 3600
+      i "Echo" 0 3600
+      i "BellShimmer" 0 3600
+      i "PwmFreeverb" 0 3600
+      i "FluteNetwork" 0 3600
+      i "CelloNetwork" 0 3600
+      i "CricketMultitapDelay" 0 3600
+      i "AmbienceReverb" 0 3600
+      i "Reverb" 0 3600
+      i "WaterShimmerReverb" 0 3600
+      i "FireEcho" 0 3600
 
-      instr Rumble
-      iAmpBase = p4
-      kVol chnget "vol_rumble"
-      kAmp = iAmpBase * kVol
-      iDur = p3
-      kEnv linseg 0, iDur * 0.4, 1, iDur * 0.2, 0.9, iDur * 0.4, 0
-      kLfo1 lfo random:i(15, 35), random:i(0.1, 0.25)
-      kLfo2 lfo random:i(20, 45), random:i(0.08, 0.2)
-      kLfo3 lfo random:i(10, 30), random:i(0.12, 0.3)
-      kLfo4 lfo random:i(25, 50), random:i(0.15, 0.35)
-      aOsc1 poscil kAmp * kEnv * 0.3, 35 + kLfo1
-      aOsc2 poscil kAmp * kEnv * 0.3, 42 + kLfo2
-      aOsc3 poscil kAmp * kEnv * 0.25, 28 + kLfo3
-      aOsc4 poscil kAmp * kEnv * 0.15, 55 + kLfo4
-      aMix = aOsc1 + aOsc2 + aOsc3 + aOsc4
-      aMix butterlp aMix, 120
-      aMix = aMix * 1.5
-      aMix tanh aMix
-      iPanStart random 0.2, 0.8
-      iPanEnd random 0.2, 0.8
-      kPan linseg iPanStart, iDur, iPanEnd
-      chnset kPan, "pan_rumble"
-      kRms rms aMix
-      chnset kRms * 10, "rms_rumble"
-      aL, aR pan2 aMix, kPan
-      gaRvbL = gaRvbL + aL * 0.6
-      gaRvbR = gaRvbR + aR * 0.6
-      outs aL * 1.5 * gkMasterFade * gkDryLevel, aR * 1.5 * gkMasterFade * gkDryLevel
-      endin
-
-      instr BellChord
-      iNote1 = p4
-      iNote2 = p5
-      iNote3 = p6
-      iAmpBase = p7
-      kVol chnget "vol_bellchord"
-      kAmp = iAmpBase * kVol * 0.5
-      iDur = p3
-      iFreq1 = cpsmidinn(iNote1)
-      iFreq2 = cpsmidinn(iNote2)
-      iFreq3 = cpsmidinn(iNote3)
-      kEnv linsegr 0, 0.02, 1, iDur - 0.05, 0.95, 0.03, 0
-      iModRat1 random 3, 5
-      iModRat2 random 3.5, 5.5
-      iModRat3 random 3.2, 5.2
-      iModIdx random 0.5, 1.5
-      kModEnv expseg 1, 0.05, 0.3, iDur - 0.05, 0.1
-      aMod1 poscil iModIdx * kModEnv * iFreq1, iFreq1 * iModRat1
-      aBell1 poscil kAmp * kEnv * 0.25, iFreq1 + aMod1
-      aMod2 poscil iModIdx * kModEnv * iFreq2, iFreq2 * iModRat2
-      aBell2 poscil kAmp * kEnv * 0.25, iFreq2 + aMod2
-      aMod3 poscil iModIdx * kModEnv * iFreq3, iFreq3 * iModRat3
-      aBell3 poscil kAmp * kEnv * 0.2, iFreq3 + aMod3
-      aMix = aBell1 + aBell2 + aBell3
-      aFilt tone aMix, 8000
-      kPanLfo lfo 0.45, random:i(0.2, 0.5)
-      kPan = 0.5 + kPanLfo
-      chnset kPan, "pan_bellchord"
-      kRms rms aFilt
-      chnset kRms * 10, "rms_bellchord"
-      aL, aR pan2 aFilt, kPan
-      aL = aL * 1.5
-      aR = aR * 1.5
-      gaBellShimL = gaBellShimL + aL * 0.5
-      gaBellShimR = gaBellShimR + aR * 0.5
-      outs aL * 0.2 * gkMasterFade * gkDryLevel, aR * 0.2 * gkMasterFade * gkDryLevel
-      endin
-
-      instr PwmChord
-      iFreq1 = cpsmidinn(p4)
-      iFreq2 = cpsmidinn(p5)
-      iFreq3 = cpsmidinn(p6)
-      iFreq4 = cpsmidinn(p7)
-      iAmpBase = p8
-      kVol chnget "vol_pwm"
-      kAmp = iAmpBase * kVol
-      iDur = p3
-      kEnv linsegr 0, iDur * 0.35, 1, iDur * 0.3, 0.95, iDur * 0.25, 0.7, iDur * 0.1, 0
-      kAmpLfo lfo 0.3, random:i(0.04, 0.09)
-      kAmpMod = 0.7 + kAmpLfo
-      kPw lfo 0.25, random:i(0.3, 0.7)
-      kPw = kPw + 0.5
-      aPw1 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq1, 2, kPw
-      aPw2 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq1 * 1.002, 2, kPw
-      aPw3 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq2, 2, kPw
-      aPw4 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq2 * 0.998, 2, kPw
-      aPw5 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq3, 2, kPw
-      aPw6 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq3 * 1.001, 2, kPw
-      aPw7 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq4, 2, kPw
-      aPw8 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq4 * 0.999, 2, kPw
-      aMix = aPw1 + aPw2 + aPw3 + aPw4 + aPw5 + aPw6 + aPw7 + aPw8
-      aFilt moogladder aMix, 1200, 0.2
-      kPanLfo lfo 0.15, random:i(0.05, 0.12)
-      kPan = 0.5 + kPanLfo
-      chnset kPan, "pan_pwm"
-      kRms rms aFilt
-      chnset kRms * 10, "rms_pwm"
-      aL, aR pan2 aFilt, kPan
-      gaPwmRvbL = gaPwmRvbL + aL * 0.6
-      gaPwmRvbR = gaPwmRvbR + aR * 0.6
-      outs aL * 0.55 * gkMasterFade * gkDryLevel, aR * 0.55 * gkMasterFade * gkDryLevel
-      endin
-
-
-      instr Flute
-      iFreq = cpsmidinn(p4)
-      iAmpBase = p5
-      kVol chnget "vol_flute"
-      kAmp = iAmpBase * kVol
-      iDur = p3
-      kEnv linsegr 0, 0.05, 1, iDur - 0.1, 0.9, 0.05, 0
-      kAmpLfo lfo 0.2, random:i(0.1, 0.2)
-      kAmpMod = 0.8 + kAmpLfo
-      iVibRate random 4.5, 6.5
-      iVibDepth random 0.008, 0.015
-      kVib lfo iVibDepth, iVibRate
-      aNoise rand 0.1
-      kNoiseEnv expseg 1, 0.08, 0.01, iDur - 0.08, 0.01
-      aBreath = aNoise * kNoiseEnv * kAmp * kAmpMod * 0.3
-      aBreath butterlp aBreath, iFreq * 3
-      aFlute1 poscil kAmp * kEnv * kAmpMod * 0.4, iFreq * (1 + kVib)
-      aFlute2 poscil kAmp * kEnv * kAmpMod * 0.35, iFreq * 1.003 * (1 + kVib * 0.9)
-      aFlute3 poscil kAmp * kEnv * kAmpMod * 0.3, iFreq * 0.997 * (1 + kVib * 1.1)
-      aMix = aFlute1 + aFlute2 + aFlute3 + aBreath
-      aFilt tone aMix, 4000
-      iPanCenter random 0.3, 0.7
-      kPanLfo lfo 0.2, random:i(0.08, 0.15)
-      kPan = iPanCenter + kPanLfo
-      chnset kPan, "pan_flute"
-      kRms rms aFilt
-      chnset kRms * 10, "rms_flute"
-      aL, aR pan2 aFilt, kPan
-      gaFluteRvbL = gaFluteRvbL + aL * 0.7
-      gaFluteRvbR = gaFluteRvbR + aR * 0.7
-      outs aL * 0.3 * gkMasterFade * gkDryLevel, aR * 0.3 * gkMasterFade * gkDryLevel
-      endin
-
-      instr Cello
-      iFreq = cpsmidinn(p4) * 0.5
-      iAmpBase = p5
-      kVol chnget "vol_cello"
-      kAmp = iAmpBase * kVol
-      iDur = p3
-      kEnv linsegr 0, 1.5, 1, iDur - 2.5, 0.98, 1, 0
-      iVibRate random 4, 5.5
-      iVibDepth random 0.004, 0.007
-      kVib lfo iVibDepth, iVibRate
-      kPwmLfo lfo 0.15, random:i(0.08, 0.15)
-      kPwm = 0.5 + kPwmLfo
-      aSaw1 vco2 kAmp * kEnv * 0.18, iFreq * (1 + kVib), 0
-      aSaw2 vco2 kAmp * kEnv * 0.18, iFreq * 1.007 * (1 + kVib * 0.98), 0
-      aSaw3 vco2 kAmp * kEnv * 0.18, iFreq * 0.993 * (1 + kVib * 1.02), 0
-      aSaw4 vco2 kAmp * kEnv * 0.17, iFreq * 1.012 * (1 + kVib), 0
-      aSaw5 vco2 kAmp * kEnv * 0.17, iFreq * 0.988 * (1 + kVib * 0.97), 0
-      aPw1 vco2 kAmp * kEnv * 0.12, iFreq * 1.003 * (1 + kVib), 2, kPwm
-      aPw2 vco2 kAmp * kEnv * 0.12, iFreq * 0.997 * (1 + kVib * 1.01), 2, kPwm
-      aMix = aSaw1 + aSaw2 + aSaw3 + aSaw4 + aSaw5 + aPw1 + aPw2
-      aFilt moogladder aMix, 600 + kEnv * 800, 0.3
-      aFilt butterlp aFilt, 1200
-      aFilt tone aFilt, 1800
-      iPan random 0.45, 0.55
-      chnset iPan, "pan_cello"
-      kRms rms aFilt
-      chnset kRms * 10, "rms_cello"
-      aL, aR pan2 aFilt, iPan
-      gaCelloRvbL = gaCelloRvbL + aL * 1.1
-      gaCelloRvbR = gaCelloRvbR + aR * 1.1
-      outs aL * 0.55 * gkMasterFade * gkDryLevel, aR * 0.55 * gkMasterFade * gkDryLevel
-      endin
-
-      instr LowThunder
-      iAmpBase = p4
-      kVol chnget "vol_thunder"
-      kAmp = iAmpBase * kVol
-      iDur = p3
-      kEnv expseg 1, 0.1, 0.8, 0.3, 0.6, iDur - 0.4, 0.001
-      aPink pinkish 1
-      kSubCf expseg 80, 0.2, 30, iDur - 0.2, 12
-      aSub butterlp aPink, kSubCf
-      aSub = aSub * 4
-      kMidCf expseg 180, 0.25, 70, iDur - 0.25, 25
-      aMid butterlp aPink, kMidCf
-      aMid = aMid * 1.2
-      aMix = (aSub * 5 + aMid * 2) * kEnv * kAmp
-      aMix tanh aMix * 1.3
-      aMix limit aMix, -0.85, 0.85
-      iPanStart random 0.2, 0.8
-      iPanEnd random 0.2, 0.8
-      kPan linseg iPanStart, iDur, iPanEnd
-      chnset kPan, "pan_thunder"
-      kRms rms aMix
-      chnset kRms * 10, "rms_thunder"
-      aL, aR pan2 aMix, kPan
-      aL = aL * 0.6
-      aR = aR * 0.6
-      gaRvbL = gaRvbL + aL * 0.4
-      gaRvbR = gaRvbR + aR * 0.4
-      outs aL * 0.35 * gkMasterFade * gkDryLevel, aR * 0.35 * gkMasterFade * gkDryLevel
-      endin
-
-      instr Cricket
-      iAmpBase = p4
-      kVol chnget "vol_cricket"
-      kAmp = iAmpBase * kVol
-      iDur = p3
-      iFreq random 4500, 8500
-      iFadeIn random 0.02, 0.08
-      iFadeOut random 0.02, 0.08
-      kEnv linseg 0, iFadeIn, 1, iDur - iFadeIn - iFadeOut, 1, iFadeOut, 0
-      kChirp lfo 1, random:i(30, 60), 0
-      kChirp = (kChirp + 1) * 0.5
-      kFreqMod lfo random:i(200, 600), random:i(8, 15)
-      aNoise rand 0.65
-      aChirp butterbp aNoise, iFreq + kFreqMod, iFreq * 0.25
-      aChirp = aChirp * kChirp * kEnv * kAmp
-      aChirp butterhp aChirp, 3500
-      aChirp tone aChirp, 9000
-      iPanStart random 0, 1
-      iPanEnd random 0, 1
-      iPanMid random 0, 1
-      kPanLfo1 lfo 0.4, random:i(0.3, 0.8)
-      kPanLfo2 lfo 0.3, random:i(0.5, 1.2), 0.25
-      kPan linseg iPanStart, iDur * 0.33, iPanMid, iDur * 0.33, iPanEnd, iDur * 0.34, iPanStart
-      kPan = kPan + kPanLfo1 + kPanLfo2
-      kPan limit kPan, 0, 1
-      chnset kPan, "pan_cricket"
-      kRms rms aChirp
-      chnset kRms * 10, "rms_cricket"
-      aL, aR pan2 aChirp, kPan
-      gaCricketDelL = gaCricketDelL + aL * 0.95
-      gaCricketDelR = gaCricketDelR + aR * 0.95
-      gaAmbienceL = gaAmbienceL + aL * 0.7
-      gaAmbienceR = gaAmbienceR + aR * 0.7
-      outs aL * 1.8 * gkMasterFade * gkDryLevel, aR * 1.8 * gkMasterFade * gkDryLevel
-      endin
-
-      instr Bird
-      iAmpBase = p4
-      kVol chnget "vol_bird"
-      kAmp = iAmpBase * kVol
-      iDur = p3
-      iStartFreq random 1000, 4000
-      iEndFreq random 800, 4500
-      kEnv expseg 0.001, 0.01, 1, iDur - 0.01, 0.01
-      kFreq expseg iStartFreq, iDur * 0.3, iEndFreq, iDur * 0.7, iEndFreq * 0.8
-      iModRatio random 2, 4
-      iModIndex random 1, 3
-      aMod poscil iModIndex * kFreq, kFreq * iModRatio
-      aBird poscil kAmp * kEnv, kFreq + aMod
-      aNoise rand 0.15
-      aNoise butterbp aNoise, kFreq, kFreq * 0.5
-      aBird = aBird + aNoise * kEnv
-      aBird tone aBird, 7000
-      iPanStart random 0, 1
-      iPanEnd random 0, 1
-      kPan linseg iPanStart, iDur, iPanEnd
-      chnset kPan, "pan_bird"
-      kRms rms aBird
-      chnset kRms * 10, "rms_bird"
-      aL, aR pan2 aBird, kPan
-      gaAmbienceL = gaAmbienceL + aL * 0.7
-      gaAmbienceR = gaAmbienceR + aR * 0.7
-      outs aL * 0.35 * gkMasterFade * gkDryLevel, aR * 0.35 * gkMasterFade * gkDryLevel
-      endin
-
-      instr WaterDrip
-      iAmpBase = p4
-      kVol chnget "vol_water"
-      kAmp = iAmpBase * kVol
-      iDur = p3
-      iDropFreq random 1200, 2800
-      iModFreq random 3000, 5000
-      kEnv expseg 1, 0.003, 0.6, 0.02, 0.3, iDur - 0.023, 0.001
-      aDrip poscil kAmp * kEnv, iDropFreq + (iModFreq * kEnv * 0.3)
-      aDrip butterbp aDrip, iDropFreq, iDropFreq * 1.8
-      aClick rand kAmp * kEnv * 0.2
-      aClick butterhp aClick, 4000
-      aDrop = aDrip + aClick
-      aDrop tone aDrop, 6000
-      iPan random 0.2, 0.8
-      kPan = iPan
-      chnset kPan, "pan_water"
-      kRms rms aDrop
-      chnset kRms * 10, "rms_water"
-      aL, aR pan2 aDrop, kPan
-      gaShimmerL = gaShimmerL + aL * 0.85
-      gaShimmerR = gaShimmerR + aR * 0.85
-      outs aL * 0.12 * gkMasterFade * gkDryLevel, aR * 0.12 * gkMasterFade * gkDryLevel
-      endin
-
-      instr CracklingFire
-      iAmpBase = p4
-      kVol chnget "vol_fire"
-      kAmp = iAmpBase * kVol
-      iDur = p3
-      kCrackleRate1 lfo 12, random:i(0.8, 3.2), 2
-      kCrackleRate1 = abs(kCrackleRate1) + 5
-      kCrackleRate2 lfo 18, random:i(1.5, 4.5), 0
-      kCrackleRate2 = abs(kCrackleRate2) + 8
-      aCrackle1 dust kAmp * 0.8, kCrackleRate1 * 95
-      aCrackle1 butterbp aCrackle1, random:i(400, 1800), random:i(600, 1200)
-      aCrackle2 dust kAmp * 0.6, kCrackleRate2 * 120
-      aCrackle2 butterbp aCrackle2, random:i(800, 2500), random:i(400, 900)
-      aCrackle3 dust kAmp * 0.4, random:i(60, 150)
-      aCrackle3 butterbp aCrackle3, random:i(200, 600), random:i(300, 700)
-      aCrackle = aCrackle1 + aCrackle2 + aCrackle3
-      kWindRate lfo 1.5, random:i(0.2, 0.6)
-      kWindRate = abs(kWindRate) + 0.5
-      aWind pinker
-      aWind = aWind * kAmp * kWindRate * 0.4
-      aWind butterbp aWind, random:i(200, 800), random:i(300, 600)
-      aWind tone aWind, 1200
-      aAir noise kAmp * 0.25, 0.5
-      aAir butterbp aAir, random:i(500, 2000), random:i(800, 1500)
-      kAirMod lfo 0.6, random:i(0.3, 0.9)
-      aAir = aAir * (kAirMod + 0.4)
-      aRumble rand kAmp * 0.35
-      aRumble tone aRumble, 120
-      aRumble butterlp aRumble, 180
-      aFire = aCrackle + aWind + aAir + aRumble
-      kEnv linsegr 0, iDur * 0.15, 1, iDur * 0.7, 0.9, 0.2, 0
-      aFire = aFire * kEnv
-      kPanLfo1 lfo 0.35, random:i(0.15, 0.45)
-      kPanLfo2 lfo 0.25, random:i(0.25, 0.65), 0.25
-      iPanCenter random 0.35, 0.65
-      kPan = iPanCenter + kPanLfo1 + kPanLfo2 * 0.5
-      kPan limit kPan, 0.05, 0.95
-      chnset kPan, "pan_fire"
-      kRms rms aFire
-      chnset kRms * 10, "rms_fire"
-      aL, aR pan2 aFire, kPan
-      gaEchoL = gaEchoL + aL * 0.6
-      gaEchoR = gaEchoR + aR * 0.6
-      outs aL * 0.65 * gkMasterFade * gkDryLevel, aR * 0.65 * gkMasterFade * gkDryLevel
-      endin
-
-      instr Marimba
-      iFreq = cpsmidinn(p4)
-      iAmpBase = p5
-      kVol chnget "vol_marimba"
-      kAmp = iAmpBase * kVol
-      iDur = p3
-      iModRatio random 1.5, 2.8
-      iModIndex random 1.2, 2.8
-      kEnv expsegr 0.001, 0.003, 1, iDur * 0.08, 0.25, iDur * 0.12, 0.08, 0.04, 0.001
-      aModEnv expsegr 0.001, 0.002, 1, iDur * 0.05, 0.15, iDur * 0.08, 0.03, 0.02, 0.001
-      aMod poscil iModIndex * aModEnv * iFreq, iFreq * iModRatio
-      aCar poscil kAmp * kEnv, iFreq + aMod
-      aFilt tone aCar, 3500
-      aFilt butterlp aFilt, 2800
-      iPan random 0.25, 0.75
-      chnset iPan, "pan_marimba"
-      kRms rms aFilt
-      chnset kRms * 10, "rms_marimba"
-      aL, aR pan2 aFilt, iPan
-      aLDelay vdelay aL, 0.4, 4
-      aRDelay vdelay aR, 0.6, 4
-      aLWide = aL + aRDelay * 0.18
-      aRWide = aR + aLDelay * 0.18
-      aLWide limit aLWide, -0.98, 0.98
-      aRWide limit aRWide, -0.98, 0.98
-      gaRvbL = gaRvbL + aLWide * 0.25
-      gaRvbR = gaRvbR + aRWide * 0.25
-      outs aLWide * 0.35 * gkMasterFade * gkDryLevel, aRWide * 0.35 * gkMasterFade * gkDryLevel
-      endin
-
-      instr GlobalFadeIn
-      gkMasterFade init 0
-      gkReverbFade init 0
-      if gkMasterFade < 1 then
-      gkMasterFade = gkMasterFade + (1.0 / (8.0 * kr))
-      gkMasterFade limit gkMasterFade, 0, 1
-      endif
-      if timeinsts() > 1 && gkReverbFade < 1 then
-      gkReverbFade = gkReverbFade + (1.0 / (6.0 * kr))
-      gkReverbFade limit gkReverbFade, 0, 1
-      endif
-      gkMasterVol chnget "vol_effect"
-      gkDryLevel chnget "vol_dry"
-      endin
-
-      instr MasterVolumeInit
-      chnset 1, "vol_effect"
-      chnset 1, "vol_dry"
-      chnset 1, "kill_switch"
-      endin
-
-      instr KillSwitch
-      gkKillSwitch chnget "kill_switch"
-      if gkKillSwitch < 0.01 then
-      turnoff2 "FM", 2, 0
-      turnoff2 "Drone", 2, 0
-      turnoff2 "NoiseSwell", 2, 0
-      turnoff2 "Rumble", 2, 0
-      turnoff2 "BellChord", 2, 0
-      turnoff2 "PwmChord", 2, 0
-      turnoff2 "LowThunder", 2, 0
-      turnoff2 "Flute", 2, 0
-      turnoff2 "Cello", 2, 0
-      turnoff2 "Cricket", 2, 0
-      turnoff2 "Bird", 2, 0
-      turnoff2 "WaterDrip", 2, 0
-      turnoff2 "CracklingFire", 2, 0
-      turnoff2 "Marimba", 2, 0
-      endif
-      endin
-
-      instr CricketMultitapDelay
-      aInL = gaCricketDelL
-      aInR = gaCricketDelR
-      aPingL delay aInR, 0.11
-      aPongR delay aInL, 0.13
-      aPingL2 delay aPongR, 0.19
-      aPongR2 delay aPingL, 0.21
-      aPingL3 delay aPongR2, 0.31
-      aPongR3 delay aPingL2, 0.37
-      aPingL4 delay aPongR3, 0.47
-      aPongR4 delay aPingL3, 0.53
-      aMixL = aInL + aPingL * 0.7 + aPingL2 * 0.5 + aPingL3 * 0.35 + aPingL4 * 0.2
-      aMixR = aInR + aPongR * 0.7 + aPongR2 * 0.5 + aPongR3 * 0.35 + aPongR4 * 0.2
-      aMixL butterlp aMixL, 7000
-      aMixR butterlp aMixR, 7000
-      aRvbL, aRvbR reverbsc aMixL, aMixR, 0.94, 10000
-      aRvbL tone aRvbL, 6000
-      aRvbR tone aRvbR, 6000
-      kMaster chnget "vol_effect"
-      outs (aMixL * 0.3 + aRvbL * 0.8) * kMaster * gkReverbFade, (aMixR * 0.3 + aRvbR * 0.8) * kMaster * gkReverbFade
-      clear gaCricketDelL, gaCricketDelR
-      endin
-
-      instr Echo
-      aInL = gaEchoL
-      aInR = gaEchoR
-      aDelL init 0
-      aDelR init 0
-      aDelL delay aInL + aDelL*0.55, 0.47
-      aDelR delay aInR + aDelR*0.6, 0.53
-      aDelL tone aDelL, 3000
-      aDelR tone aDelR, 3000
-      kMaster chnget "vol_effect"
-      outs aDelL * 0.2 * kMaster, aDelR * 0.2 * kMaster
-      clear gaEchoL, gaEchoR
-      endin
-
-      instr BellShimmer
-      aInL = gaBellShimL
-      aInR = gaBellShimR
-      aShiftL1 poscil aInL * 0.4, 1.03, -1
-      aShiftL2 poscil aInL * 0.35, 0.97, -1
-      aShiftL3 poscil aInL * 0.3, 1.07, -1
-      aShiftR1 poscil aInR * 0.4, 1.04, -1
-      aShiftR2 poscil aInR * 0.35, 0.96, -1
-      aShiftR3 poscil aInR * 0.3, 1.06, -1
-      aShimL = aInL + aShiftL1 + aShiftL2 + aShiftL3
-      aShimR = aInR + aShiftR1 + aShiftR2 + aShiftR3
-      aDelL init 0
-      aDelR init 0
-      aDelL delay aShimL + aDelR * 0.3, 0.37
-      aDelR delay aShimR + aDelL * 0.3, 0.43
-      aDelL tone aDelL, 6000
-      aDelR tone aDelR, 6000
-      aMixL = aShimL + aDelL * 0.4
-      aMixR = aShimR + aDelR * 0.4
-      aRvbL, aRvbR reverbsc aMixL, aMixR, 0.92, 9000
-      kMaster chnget "vol_effect"
-      outs aRvbL * 0.7 * kMaster * gkReverbFade, aRvbR * 0.7 * kMaster * gkReverbFade
-      clear gaBellShimL, gaBellShimR
-      endin
-
-      instr PwmFreeverb
-      aRvbL, aRvbR freeverb gaPwmRvbL, gaPwmRvbR, 0.88, 0.5
-      kMaster chnget "vol_effect"
-      outs aRvbL * kMaster * gkReverbFade, aRvbR * kMaster * gkReverbFade
-      clear gaPwmRvbL, gaPwmRvbR
-      endin
-
-      instr FluteNetwork
-      aInL = gaFluteRvbL
-      aInR = gaFluteRvbR
-      aChL1 vdelay aInL, 12 + 3 * lfo:k(1, 0.5), 30
-      aChR1 vdelay aInR, 14 + 3 * lfo:k(1, 0.45), 30
-      aChL2 vdelay aInL, 18 + 2.5 * lfo:k(1, 0.6), 30
-      aChR2 vdelay aInR, 16 + 2.5 * lfo:k(1, 0.55), 30
-      aChL = (aInL + aChL1 * 0.35 + aChL2 * 0.25) * 0.65
-      aChR = (aInR + aChR1 * 0.35 + aChR2 * 0.25) * 0.65
-      aDelL init 0
-      aDelR init 0
-      aDelL delay aChL + aDelR * 0.25, 0.31
-      aDelR delay aChR + aDelL * 0.25, 0.37
-      aDelL tone aDelL, 3500
-      aDelR tone aDelR, 3500
-      aMixL = aChL + aDelL * 0.3
-      aMixR = aChR + aDelR * 0.3
-      aRvbL, aRvbR reverbsc aMixL, aMixR, 0.88, 7000
-      kMaster chnget "vol_effect"
-      outs aRvbL * 0.65 * kMaster * gkReverbFade, aRvbR * 0.65 * kMaster * gkReverbFade
-      clear gaFluteRvbL, gaFluteRvbR
-      endin
-
-      instr CelloNetwork
-      aInL = gaCelloRvbL
-      aInR = gaCelloRvbR
-      aChL1 vdelay aInL, 18 + 6 * lfo:k(1, 0.35), 50
-      aChR1 vdelay aInR, 20 + 6 * lfo:k(1, 0.32), 50
-      aChL2 vdelay aInL, 26 + 5 * lfo:k(1, 0.48), 50
-      aChR2 vdelay aInR, 24 + 5 * lfo:k(1, 0.44), 50
-      aChL3 vdelay aInL, 32 + 4 * lfo:k(1, 0.52), 50
-      aChR3 vdelay aInR, 30 + 4 * lfo:k(1, 0.5), 50
-      aChL = (aInL + aChL1 * 0.4 + aChL2 * 0.3 + aChL3 * 0.2) * 0.6
-      aChR = (aInR + aChR1 * 0.4 + aChR2 * 0.3 + aChR3 * 0.2) * 0.6
-      aDelL init 0
-      aDelR init 0
-      aDelL delay aChL + aDelR * 0.35, 0.41
-      aDelR delay aChR + aDelL * 0.35, 0.47
-      aDelL tone aDelL, 2800
-      aDelR tone aDelR, 2800
-      aMixL = aChL + aDelL * 0.4
-      aMixR = aChR + aDelR * 0.4
-      aRvbL, aRvbR reverbsc aMixL, aMixR, 0.9, 5000
-      kMaster chnget "vol_effect"
-      outs aRvbL * 0.7 * kMaster * gkReverbFade, aRvbR * 0.7 * kMaster * gkReverbFade
-      clear gaCelloRvbL, gaCelloRvbR
-      endin
-
-      instr AmbienceReverb
-      aInL = gaAmbienceL
-      aInR = gaAmbienceR
-      aRvbL, aRvbR reverbsc aInL, aInR, 0.93, 10000
-      aRvbL tone aRvbL, 6000
-      aRvbR tone aRvbR, 6000
-      kMaster chnget "vol_effect"
-      outs aRvbL * 0.5 * kMaster * gkReverbFade, aRvbR * 0.5 * kMaster * gkReverbFade
-      clear gaAmbienceL, gaAmbienceR
-      endin
-
-      instr Reverb
-      aL, aR reverbsc gaRvbL, gaRvbR, 0.85, 8000
-      kMaster chnget "vol_effect"
-      outs aL * kMaster * gkReverbFade, aR * kMaster * gkReverbFade
-      clear gaRvbL, gaRvbR
-      endin
-
-      instr WaterShimmerReverb
-      aL = gaShimmerL
-      aR = gaShimmerR
-      aPitchL, aPitchR reverbsc aL, aR, 0.92, 12000
-      aPitchL = aPitchL * 0.4
-      aPitchR = aPitchR * 0.4
-      aDelL vdelay3 aPitchL, 23, 500
-      aDelR vdelay3 aPitchR, 29, 500
-      aShimL = aPitchL + aDelL * 0.6
-      aShimR = aPitchR + aDelR * 0.6
-      kMaster chnget "vol_effect"
-      outs aShimL * kMaster * gkReverbFade, aShimR * kMaster * gkReverbFade
-      clear gaShimmerL, gaShimmerR
-      endin
-
-      instr FireEcho
-      aL = gaEchoL
-      aR = gaEchoR
-      aDelL vdelay3 aL, 180, 600
-      aDelR vdelay3 aR, 240, 600
-      aFeedL = aL + aDelR * 0.4
-      aFeedR = aR + aDelL * 0.4
-      kMaster chnget "vol_effect"
-      outs aFeedL * 0.5 * kMaster * gkReverbFade, aFeedR * 0.5 * kMaster * gkReverbFade
-      clear gaEchoL, gaEchoR
-      endin
+      ; Performance notes
       `;
+          output.value = csdHeader;
+          output.classList.add("visible");
+          document.getElementById("startCsdBtn").textContent =
+            "⏹ Stop Recording";
+          document.getElementById("startCsdBtn").style.background = "#dc3545";
+          document.getElementById("toggleConsoleBtn").textContent =
+            "👁️ Hide Console";
+          console.log("CSD Recording started");
+        } else {
+          // Stop recording
+          stopCSDRecording();
+        }
+      }
+
+      function stopCSDRecording() {
+        if (!csdRecording) return;
+        csdRecording = false;
+
+        const output = document.getElementById("csdOutput");
+        const footer = `\ne\n</CsScore>
+      </CsoundSynthesizer>`;
+        output.value += footer;
+
+        document.getElementById("startCsdBtn").textContent =
+          "⏺ Start CSD Recording";
+        document.getElementById("startCsdBtn").style.background = "#007bff";
+        document.getElementById("downloadCsdBtn").disabled = false;
+        console.log("CSD Recording stopped");
+
+        // Prompt user to download
+        if (confirm("Recording stopped. Download the CSD file now?")) {
+          downloadCsd();
+        }
+      }
+
+      function addNoteToCSD(instrName, p3, ...pfields) {
+        if (!csdRecording) return;
+
+        const elapsed = (Date.now() - csdRecordingStartTime) / 1000;
+        const p2 = elapsed.toFixed(3);
+
+        let scoreStatement;
+        if (pfields.length > 0) {
+          const pfieldsStr = pfields.join(" ");
+          scoreStatement = `i "${instrName}" ${p2} ${p3} ${pfieldsStr}`;
+        } else {
+          scoreStatement = `i "${instrName}" ${p2} ${p3}`;
+        }
+
+        const output = document.getElementById("csdOutput");
+        output.value += scoreStatement + "\n";
+      }
+
+      function downloadCsd() {
+        const output = document.getElementById("csdOutput");
+        if (!output.value.trim()) {
+          alert("No CSD content to download");
+          return;
+        }
+
+        const timestamp = new Date()
+          .toISOString()
+          .replace(/:/g, "-")
+          .split(".")[0];
+        const filename = `etude1_${timestamp}.csd`;
+
+        const blob = new Blob([output.value], {
+          type: "text/plain;charset=utf-8",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        console.log(`Downloaded: ${filename}`);
+      }
 
       // Update effective volume based on mute/solo state
       function updateEffectiveVolume(layer) {
@@ -2813,6 +3002,7 @@
         switch (layer) {
           case "fm":
             csound.inputMessage(`i "FM" 0 1.5 ${note} ${amp}`);
+            addNoteToCSD("FM", 1.5, note, amp);
             break;
           case "drone":
             const note2 = choose(chordTones);
@@ -2820,12 +3010,15 @@
             csound.inputMessage(
               `i "Drone" 0 8 ${note} ${note2} ${note3} ${amp}`,
             );
+            addNoteToCSD("Drone", 8, note, note2, note3, amp);
             break;
           case "noise":
             csound.inputMessage(`i "NoiseSwell" 0 15 ${amp}`);
+            addNoteToCSD("NoiseSwell", 15, amp);
             break;
           case "rumble":
             csound.inputMessage(`i "Rumble" 0 12 ${amp * 1.5}`);
+            addNoteToCSD("Rumble", 12, amp * 1.5);
             break;
           case "bellchord":
             const b2 = note + 7;
@@ -2833,6 +3026,7 @@
             csound.inputMessage(
               `i "BellChord" 0 5 ${note} ${b2} ${b3} ${amp * 0.8}`,
             );
+            addNoteToCSD("BellChord", 5, note, b2, b3, amp * 0.8);
             break;
           case "pwm":
             const p1 = choose(chordTones);
@@ -2842,27 +3036,34 @@
             csound.inputMessage(
               `i "PwmChord" 0 10 ${p1} ${p2} ${p3} ${p4} ${amp}`,
             );
+            addNoteToCSD("PwmChord", 10, p1, p2, p3, p4, amp);
             break;
           case "thunder":
             csound.inputMessage(`i "LowThunder" 0 6 ${amp * 1.2}`);
+            addNoteToCSD("LowThunder", 6, amp * 1.2);
             break;
           case "flute":
             csound.inputMessage(`i "Flute" 0 4 ${note} ${amp}`);
+            addNoteToCSD("Flute", 4, note, amp);
             break;
           case "cello":
             csound.inputMessage(
               `i "Cello" 0 4 ${bPhrygian[randInt(0, 4)]} ${amp * 1.8}`,
             );
+            addNoteToCSD("Cello", 4, bPhrygian[randInt(0, 4)], amp * 1.8);
             break;
           case "cricket":
             csound.inputMessage(`i "Cricket" 0 0.15 ${amp}`);
+            addNoteToCSD("Cricket", 0.15, amp);
             break;
           case "bird":
             const birdNote = bPhrygian[randInt(8, bPhrygian.length)];
             csound.inputMessage(`i "Bird" 0 2 ${amp * 0.5}`);
+            addNoteToCSD("Bird", 2, amp * 0.5);
             break;
           case "rumble":
             csound.inputMessage(`i "Rumble" 0 12 ${amp * 1.2}`);
+            addNoteToCSD("Rumble", 12, amp * 1.2);
             break;
         }
         console.log(`✓ Triggered ${layer} instrument`);
@@ -2964,6 +3165,7 @@
         const dur = rand(0.2, 1.2);
         const amp = rand(0.04, 0.1);
         csound.inputMessage(`i "FM" 0 ${dur} ${note} ${amp}`);
+        addNoteToCSD("FM", dur, note, amp);
         const timer = setTimeout(composeFM, rand(400, 3000));
         composerTimers.push(timer);
       }
@@ -2983,6 +3185,7 @@
         csound.inputMessage(
           `i "Drone" 0 ${dur} ${note1} ${note2} ${note3} ${amp}`,
         );
+        addNoteToCSD("Drone", dur, note1, note2, note3, amp);
         const timer = setTimeout(composeDrone, rand(8000, 18000));
         composerTimers.push(timer);
       }
@@ -2992,6 +3195,7 @@
         const dur = rand(8, 18);
         const amp = rand(0.2, 0.35);
         csound.inputMessage(`i "Rumble" 0 ${dur} ${amp}`);
+        addNoteToCSD("Rumble", dur, amp);
         const timer = setTimeout(composeRumble, rand(12000, 30000));
         composerTimers.push(timer);
       }
@@ -3001,6 +3205,7 @@
         const dur = rand(24, 40);
         const amp = rand(0.1, 0.16);
         csound.inputMessage(`i "NoiseSwell" 0 ${dur} ${amp}`);
+        addNoteToCSD("NoiseSwell", dur, amp);
         const timer = setTimeout(composeNoiseSwell, rand(10000, 20000));
         composerTimers.push(timer);
       }
@@ -3026,6 +3231,7 @@
         csound.inputMessage(
           `i "BellChord" 0 ${dur} ${note1} ${note2} ${note3} ${amp}`,
         );
+        addNoteToCSD("BellChord", dur, note1, note2, note3, amp);
         const timer = setTimeout(composeBellChord, rand(6000, 12000));
         composerTimers.push(timer);
       }
@@ -3041,6 +3247,7 @@
         csound.inputMessage(
           `i "PwmChord" 0 ${dur} ${note1} ${note2} ${note3} ${note4} ${amp}`,
         );
+        addNoteToCSD("PwmChord", dur, note1, note2, note3, note4, amp);
         const timer = setTimeout(composePwmChord, rand(8000, 15000));
         composerTimers.push(timer);
       }
@@ -3050,6 +3257,7 @@
         const dur = rand(5, 12);
         const amp = rand(0.25, 0.45);
         csound.inputMessage(`i "LowThunder" 0 ${dur} ${amp}`);
+        addNoteToCSD("LowThunder", dur, amp);
         const timer = setTimeout(composeThunder, rand(25000, 70000));
         composerTimers.push(timer);
       }
@@ -3062,6 +3270,7 @@
         const dur = rand(0.4, 1.8);
         const amp = rand(0.1, 0.18);
         csound.inputMessage(`i "Flute" 0 ${dur} ${note} ${amp}`);
+        addNoteToCSD("Flute", dur, note, amp);
 
         // Decide if we should play more notes in this phrase
         const shouldContinue = Math.random() < 0.7 && randInt(0, 5) > 0;
@@ -3091,6 +3300,7 @@
         const dur = rand(3, 6);
         const amp = rand(0.3, 0.45);
         csound.inputMessage(`i "Cello" 0 ${dur} ${note} ${amp}`);
+        addNoteToCSD("Cello", dur, note, amp);
 
         // Decide if we should play another note in this phrase
         const shouldContinue = Math.random() < 0.5;
@@ -3117,6 +3327,7 @@
         const dur = rand(0.5, 2.5);
         const amp = rand(0.35, 0.55);
         csound.inputMessage(`i "Cricket" 0 ${dur} ${amp}`);
+        addNoteToCSD("Cricket", dur, amp);
         const timer = setTimeout(composeCricket, rand(3500, 8000));
         composerTimers.push(timer);
       }
@@ -3128,6 +3339,7 @@
         const dur = rand(0.2, 0.8);
         const amp = rand(0.18, 0.32);
         csound.inputMessage(`i "Bird" 0 ${dur} ${amp}`);
+        addNoteToCSD("Bird", dur, amp);
 
         // Decide if we should chirp again (up to 4 chirps total)
         const shouldContinue = Math.random() < 0.6 && randInt(0, 4) > 0;
@@ -3151,6 +3363,7 @@
         const dur = rand(0.08, 0.18);
         const amp = rand(0.2, 0.4);
         csound.inputMessage(`i "WaterDrip" 0 ${dur} ${amp}`);
+        addNoteToCSD("WaterDrip", dur, amp);
 
         // Decide if we should drip again (up to 3 drips total)
         const shouldContinue = Math.random() < 0.5 && randInt(0, 3) > 0;
@@ -3172,6 +3385,7 @@
         const dur = rand(6, 18);
         const amp = rand(0.25, 0.45);
         csound.inputMessage(`i "CracklingFire" 0 ${dur} ${amp}`);
+        addNoteToCSD("CracklingFire", dur, amp);
         const timer = setTimeout(composeFire, rand(1500, 6000));
         composerTimers.push(timer);
       }
@@ -3182,6 +3396,7 @@
         const dur = rand(0.15, 0.4);
         const amp = rand(0.025, 0.055);
         csound.inputMessage(`i "Marimba" 0 ${dur} ${note} ${amp}`);
+        addNoteToCSD("Marimba", dur, note, amp);
         const timer = setTimeout(composeMarimba, rand(2000, 8000));
         composerTimers.push(timer);
       }
@@ -3339,6 +3554,11 @@
         .addEventListener("click", async function () {
           isPlaying = false;
 
+          // Stop CSD recording if active
+          if (csdRecording) {
+            stopCSDRecording();
+          }
+
           // Clear all composer timers to prevent new notes from triggering
           composerTimers.forEach((timer) => clearTimeout(timer));
           composerTimers = [];
@@ -3404,6 +3624,33 @@
           document.getElementById("stopBtn").disabled = true;
         });
 
+      // CSD Recording Controls
+      document
+        .getElementById("startCsdBtn")
+        .addEventListener("click", function () {
+          generateCsound();
+        });
+
+      document
+        .getElementById("toggleConsoleBtn")
+        .addEventListener("click", function () {
+          const output = document.getElementById("csdOutput");
+          const isVisible = output.classList.contains("visible");
+          if (isVisible) {
+            output.classList.remove("visible");
+            this.textContent = "👁️ Show Console";
+          } else {
+            output.classList.add("visible");
+            this.textContent = "👁️ Hide Console";
+          }
+        });
+
+      document
+        .getElementById("downloadCsdBtn")
+        .addEventListener("click", function () {
+          downloadCsd();
+        });
+
       // 3D Background Controls
       // Dry Level Control
       document
@@ -3431,31 +3678,31 @@
 
       // Removed dead code for enable3D, rotation-speed, particle-count
       /*
-      document
-        .getElementById("enable3D")
-        .addEventListener("change", function () {
-          enable3DBackground = this.checked;
-          console.log(`3D Background: ${enable3DBackground ? "ON" : "OFF"}`);
-        });
+            document
+              .getElementById("enable3D")
+              .addEventListener("change", function () {
+                enable3DBackground = this.checked;
+                console.log(`3D Background: ${enable3DBackground ? "ON" : "OFF"}`);
+              });
 
-      document
-        .getElementById("rotation-speed")
-        .addEventListener("input", function () {
-          rotationSpeed = this.value / 100;
-          document.getElementById("rotation-speed-val").textContent =
-            this.value + "%";
-        });
+            document
+              .getElementById("rotation-speed")
+              .addEventListener("input", function () {
+                rotationSpeed = this.value / 100;
+                document.getElementById("rotation-speed-val").textContent =
+                  this.value + "%";
+              });
 
-      document
-        .getElementById("particle-count")
-        .addEventListener("input", function () {
-          particleCount = parseInt(this.value);
-          document.getElementById("particle-count-val").textContent =
-            this.value;
-          createParticles();
-          console.log(`Particle count updated to ${particleCount}`);
-        });
-      */
+            document
+              .getElementById("particle-count")
+              .addEventListener("input", function () {
+                particleCount = parseInt(this.value);
+                document.getElementById("particle-count-val").textContent =
+                  this.value;
+                createParticles();
+                console.log(`Particle count updated to ${particleCount}`);
+              });
+            */
 
       // Shape button event listeners
       document.querySelectorAll(".shape-btn").forEach((btn) => {
@@ -3660,32 +3907,32 @@
 
       // Skybox code disabled - using CSS background images instead
       /*
-      document
-        .getElementById("enableSkybox")
-        .addEventListener("change", function () {
-          skyboxEnabled = this.checked;
-          setSkyboxVisibility(skyboxEnabled);
-          console.log(`Skybox: ${skyboxEnabled ? "ON" : "OFF"}`);
-        });
+            document
+              .getElementById("enableSkybox")
+              .addEventListener("change", function () {
+                skyboxEnabled = this.checked;
+                setSkyboxVisibility(skyboxEnabled);
+                console.log(`Skybox: ${skyboxEnabled ? "ON" : "OFF"}`);
+              });
 
-      document.querySelectorAll(".skybox-btn").forEach((btn) => {
-        btn.addEventListener("click", function () {
-          document
-            .querySelectorAll(".skybox-btn")
-            .forEach((b) => b.classList.remove("active"));
+            document.querySelectorAll(".skybox-btn").forEach((btn) => {
+              btn.addEventListener("click", function () {
+                document
+                  .querySelectorAll(".skybox-btn")
+                  .forEach((b) => b.classList.remove("active"));
 
-          this.classList.add("active");
+                this.classList.add("active");
 
-          currentSkybox = this.dataset.skybox;
-          loadSkyboxTexture(currentSkybox);
-          console.log(`Skybox changed to: ${currentSkybox}`);
-        });
-      });
+                currentSkybox = this.dataset.skybox;
+                loadSkyboxTexture(currentSkybox);
+                console.log(`Skybox changed to: ${currentSkybox}`);
+              });
+            });
 
-      document
-        .querySelector('.skybox-btn[data-skybox="nebula"]')
-        .classList.add("active");
-      */
+            document
+              .querySelector('.skybox-btn[data-skybox="nebula"]')
+              .classList.add("active");
+            */
 
       // Random background controls
       document

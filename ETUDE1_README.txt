@@ -78,6 +78,12 @@ MAIN CONTROLS:
 • TAB key = Hide/show all UI
 • Hide Sliders = Show/hide detailed controls
 
+CSD RECORDING (NEW!):
+• Start CSD Recording - Capture your performance to .csd file
+• Stop Recording - Finalize the recording
+• Download .CSD File - Save for use in any Csound application
+• Show/Hide Console - View the generated score in real-time
+
 AUDIO MIXING:
 • 14 individual layer volume sliders
 • Mute (M) and Solo (S) buttons for each layer
@@ -268,6 +274,13 @@ VISUAL EXPLORATION:
 • Switch backgrounds to change the mood
 • Enable random background changes for evolving visuals
 • Hide UI (TAB) for fully immersive experience
+
+RECORDING YOUR PERFORMANCE:
+• Click "Start CSD Recording" before or during playback
+• All notes are captured with precise timing
+• Click "Stop Recording" when finished
+• Download the .csd file to replay in Csound, CsoundQt, or Cabbage
+• Share your unique performance with other Csound users
 
 EXTENDED LISTENING:
 • The piece can run indefinitely
