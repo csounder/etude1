@@ -1,0 +1,279 @@
+═══════════════════════════════════════════════════════════════
+  ETUDE#1 - VERSION 5.2 RELEASE NOTES
+═══════════════════════════════════════════════════════════════
+
+Release Date: March 14, 2026
+GitHub: https://github.com/csounder/etude1
+Netlify: (auto-deploys from main branch)
+
+═══════════════════════════════════════════════════════════════
+  NEW FEATURES
+═══════════════════════════════════════════════════════════════
+
+🎵 CSD RECORDING & EXPORT (Major Feature!)
+───────────────────────────────────────────────────────────────
+
+Export your unique generative performances as standalone Csound 
+(.csd) files that can be replayed in any Csound application!
+
+KEY CAPABILITIES:
+
+✓ Start/Stop Recording Controls
+  • Begin recording at any time (before or during playback)
+  • Stop recording when you've captured your desired performance
+  • Clear visual feedback of recording state
+
+✓ Real-Time Score Display
+  • Watch score statements generate as instruments play
+  • Toggle show/hide console for unobstructed viewing
+  • Auto-scroll to latest entries
+
+✓ Precise Timing Capture
+  • Millisecond-accurate timestamps for every note
+  • Preserves exact generative performance timing
+  • All events relative to recording start time
+
+✓ Complete Standalone Files
+  • Full orchestra code embedded in .csd file
+  • All 14 instruments included
+  • 10 effect processors with proper routing
+  • Channel initialization for volume settings
+  • Ready to play in Csound, CsoundQt, or Cabbage
+
+✓ Volume Preservation
+  • Current slider settings captured at recording start
+  • Embedded in ChannelInit instrument
+  • Playback matches your live mix
+
+✓ One-Click Download
+  • Timestamped filenames (etude1_2026-03-14T12-45-30.csd)
+  • UTF-8 encoded text format
+  • Compatible with all Csound tools
+
+═══════════════════════════════════════════════════════════════
+  BUG FIXES
+═══════════════════════════════════════════════════════════════
+
+🐛 CRITICAL: Fixed JavaScript Syntax Errors
+───────────────────────────────────────────────────────────────
+
+ISSUE: "Uncaught SyntaxError: Invalid or unexpected token"
+• Escaped backticks inside template literals caused parse errors
+• Application would not load in browser
+• No visuals or audio playback
+
+SOLUTION: Removed all backslash escapes from template literals
+• Lines 2845, 2847, 2866, 2887 in generateCsound() function
+• Proper template literal syntax restored
+• Application now loads and runs correctly
+
+DETAILS:
+Before:  const slider = document.getElementById(\`slider-\${layer}\`);
+After:   const slider = document.getElementById(`slider-${layer}`);
+
+═══════════════════════════════════════════════════════════════
+  DOCUMENTATION UPDATES
+═══════════════════════════════════════════════════════════════
+
+📚 Comprehensive Documentation Refresh
+───────────────────────────────────────────────────────────────
+
+UPDATED FILES:
+
+1. ETUDE1_README.txt
+   • Added "CSD Recording" section under Controls & Features
+   • Added "Recording Your Performance" listening suggestions
+   • Explained download workflow and use cases
+
+2. ETUDE1_CODE_DOCUMENTATION.md
+   • New section: "CSD Recording & Export" (full technical docs)
+   • Detailed code examples for all recording functions
+   • Example generated .csd file structure
+   • Use cases and technical notes
+   • Updated Table of Contents
+
+3. ETUDE1_LANDING_PAGE.html
+   • Added feature highlight: "CSD Recording & Export (NEW!)"
+   • Updated features list with recording capability
+   • Emphasized portability and sharing features
+
+4. This file: RELEASE_NOTES_v5.2.txt
+   • Complete changelog for this release
+   • Feature documentation
+   • Bug fix details
+
+═══════════════════════════════════════════════════════════════
+  TECHNICAL DETAILS
+═══════════════════════════════════════════════════════════════
+
+📊 Implementation Architecture
+───────────────────────────────────────────────────────────────
+
+RECORDING WORKFLOW:
+
+1. User clicks "⏺ Start CSD Recording" button
+   → Initializes recording timestamp
+   → Generates complete CSD header with orchestra code
+   → Reads current volume slider values
+   → Creates ChannelInit instrument with captured settings
+   → Displays header in console textarea
+
+2. During Performance
+   → Every note event calls addNoteToCSD()
+   → Calculates elapsed time since recording start
+   → Formats as i-statement with precise p2 timing
+   → Appends to console in real-time
+   → User can monitor progress
+
+3. User clicks "⏹ Stop Recording" button
+   → Appends closing tags (e, </CsScore>, </CsoundSynthesizer>)
+   → Enables download button
+   → Prompts user to download
+
+4. User clicks "💾 Download .CSD File"
+   → Generates timestamped filename
+   → Creates Blob from textarea content
+   → Triggers browser download
+   → File saved to user's Downloads folder
+
+═══════════════════════════════════════════════════════════════
+
+CODE STATISTICS:
+
+Files Modified: 4
+Lines Added: 1,637
+Lines Removed: 1,121
+Net Change: +516 lines
+
+New Functions:
+• generateCsound()      - Initialize recording
+• addNoteToCSD()        - Capture note events
+• stopCSDRecording()    - Finalize recording
+• downloadCsd()         - Save to file
+
+New UI Elements:
+• #startCsdBtn          - Start/stop recording button
+• #toggleConsoleBtn     - Show/hide console button
+• #downloadCsdBtn       - Download .csd file button
+• #csdOutput            - Textarea for score display
+
+═══════════════════════════════════════════════════════════════
+  USE CASES
+═══════════════════════════════════════════════════════════════
+
+🎓 EDUCATIONAL
+───────────────────────────────────────────────────────────────
+• Study generative composition techniques
+• Analyze probabilistic note generation patterns
+• Learn Csound score syntax and timing
+• Understand autonomous composer algorithms
+• Examine instrument parameter ranges
+
+🎨 CREATIVE
+───────────────────────────────────────────────────────────────
+• Capture unique generative performances
+• Share compositions with other Csound users
+• Create variations by editing exported scores
+• Archive favorite performances
+• Build libraries of generative material
+
+🔧 TECHNICAL
+───────────────────────────────────────────────────────────────
+• Debug instrument behavior
+• Performance analysis and optimization
+• Documentation of compositional systems
+• Reproducible research in algorithmic composition
+• Portfolio documentation for composers
+
+═══════════════════════════════════════════════════════════════
+  COMPATIBILITY
+═══════════════════════════════════════════════════════════════
+
+Exported .csd files work with:
+✓ Csound 6.x (command line)
+✓ Csound 7.x (command line)
+✓ CsoundQt (cross-platform IDE)
+✓ Cabbage (plugin/app creator)
+✓ Blue (composition environment)
+✓ Any standard Csound implementation
+
+Platform Requirements (unchanged):
+✓ Modern browser (Chrome, Firefox, Safari, Edge)
+✓ JavaScript enabled
+✓ Web Audio API support
+✓ WebGL for 3D graphics
+✓ ~2MB download for Csound WASM (first run only)
+
+═══════════════════════════════════════════════════════════════
+  DEPLOYMENT
+═══════════════════════════════════════════════════════════════
+
+GitHub Repository: https://github.com/csounder/etude1
+Branch: main
+Commit: a1c834d
+
+Netlify Configuration:
+• Auto-deploys from main branch
+• Root redirects to ETUDE1_LANDING_PAGE.html
+• Security headers enabled
+• Cache control optimized
+• Permissions policy allows Web Audio + fullscreen
+
+Expected Netlify URL: https://etude1.netlify.app
+(or custom domain if configured)
+
+═══════════════════════════════════════════════════════════════
+  UPGRADE INSTRUCTIONS
+═══════════════════════════════════════════════════════════════
+
+For users running local copies:
+
+1. Download latest version from GitHub
+2. Extract to replace existing files
+3. Clear browser cache (Ctrl+F5 / Cmd+Shift+R)
+4. Reload page
+5. Test CSD recording feature
+
+For Netlify users:
+• Automatic deployment from main branch
+• No action required
+• Changes live within 1-2 minutes of push
+
+═══════════════════════════════════════════════════════════════
+  KNOWN ISSUES
+═══════════════════════════════════════════════════════════════
+
+None at this time.
+
+If you encounter issues, please:
+1. Check browser console for errors
+2. Ensure browser is up to date
+3. Try in incognito/private mode
+4. Clear browser cache
+5. Report issues to repository
+
+═══════════════════════════════════════════════════════════════
+  FUTURE ENHANCEMENTS (Planned)
+═══════════════════════════════════════════════════════════════
+
+• MIDI file export (.mid)
+• WAV audio recording and export
+• Multiple recording slots (save/load)
+• Preset system for mix settings
+• Score editing within browser
+• Real-time score playback scrubbing
+
+═══════════════════════════════════════════════════════════════
+  CREDITS
+═══════════════════════════════════════════════════════════════
+
+Composer: Richard Boulanger
+Technical Collaborator: Dr.C (AI Assistant)
+Built with: Csound, Three.js, WebAssembly
+Year: 2026
+
+═══════════════════════════════════════════════════════════════
+
+Thank you for using Etude#1!
+
+═══════════════════════════════════════════════════════════════
