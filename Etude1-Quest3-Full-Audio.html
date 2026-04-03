@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Etude#1 VR - Full with Csound</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Courier New', monospace; background: #000; }
+        #info { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; font-size: 13px; z-index: 100; line-height: 1.6; }
+        #vr-button { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 20px rgba(102, 126, 234, 0.7); z-index: 100; transition: all 0.3s; }
+        #vr-button:hover { transform: translateX(-50%) translateY(-3px); box-shadow: 0 8px 25px rgba(102, 126, 234, 0.9); }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <strong style="font-size: 16px; color: #667eea;">🎵 Etude#1 VR - Quest 3</strong><br>
+        <strong>Controls:</strong><br>
+        <span style="color: #88ff88;">⚫ B/Y Button:</span> Toggle Menu<br>
+        <span style="color: #88ff88;">🎯 Trigger:</span> Teleport<br>
+        <span style="color: #88ff88;">🤏 Squeeze:</span> Select UI buttons<br>
+        <strong style="color: #ff8888;">Start Audio in VR menu!</strong>
+    </div>
+    <button id="vr-button">🥽 Enter VR</button>
+
+    <script type="importmap">
+    {"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+    </script>
+
+    <script type="module">

@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Etude#1 VR - Quest 3 Optimized</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: "Courier New", monospace;
+        background: #000;
+      }
+      #info {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        z-index: 100;
+      }
+      #vr-button {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.6);
+        z-index: 100;
+      }
+      #vr-button:hover {
+        transform: translateX(-50%) translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.8);
+      }
+      #vr-button:disabled {
+        background: #444;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <strong>Etude#1 VR - Quest 3 Optimized</strong><br />
+      Hand Tracking Enabled<br />
+      Trigger: Teleport | Squeeze: Toggle Menu<br />
+      B/Y Button: Toggle Menu
+    </div>
+    <button id="vr-button">Enter VR</button>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { VRButton } from "three/addons/webxr/VRButton.js";
+      import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
+      import { XRHandModelFactory } from "three/addons/webxr/XRHandModelFactory.js";
+      import { HTMLMesh } from "three/addons/interactive/HTMLMesh.js";
+      import { InteractiveGroup } from "three/addons/interactive/InteractiveGroup.js";
+
+      // ===== Scene Setup =====
+      let camera, scene, renderer, clock;
+      let controller1, controller2, hand1, hand2;
+      let controllerGrip1, controllerGrip2;
+      let teleportMarker, teleportLine;
+      let floor, skybox;
+      let particleSystem;
+      let audioLayers = {};
+      let layerVolumes = {};
+      let isVRActive = false;
+      let controlPanel, controlPanelGroup;
+      let isPanelVisible = false;
+      let raycaster,
+        intersectedObjects = [];
+
+      // Layer definitions from original
+      const layers = [
+        "fm",
+        "drone",
+        "noise",
+        "rumble",
+        "bellchord",
+        "pwm",
+        "thunder",
+        "flute",
+        "cello",
+        "cricket",
+        "bird",
+        "water",
+        "fire",
+        "marimba",
+      ];
+
+      const layerNames = {
+        fm: "FM Synth",
+        drone: "Drone",
+        noise: "Noise Swell",
+        rumble: "Low Rumble",
+        bellchord: "Shimmer Bell",
+        pwm: "PWM Chord",
+        thunder: "Low Thunder",
+        flute: "Flute",
+        cello: "Cello",
+        cricket: "Cricket",
+        bird: "Bird",
+        water: "Water Drips",
+        fire: "Crackling Fire",
+        marimba: "Marimba",
+      };
+
+      const layerColors = {
+        fm: { h: 0.05, s: 0.8, l: 0.65 },
+        drone: { h: 0.15, s: 0.75, l: 0.6 },
+        noise: { h: 0.55, s: 0.6, l: 0.7 },
+        rumble: { h: 0.75, s: 0.7, l: 0.5 },
+        bellchord: { h: 0.9, s: 0.65, l: 0.75 },
+        pwm: { h: 0.65, s: 0.7, l: 0.65 },
+        thunder: { h: 0.78, s: 0.6, l: 0.55 },
+        flute: { h: 0.35, s: 0.7, l: 0.7 },
+        cello: { h: 0.5, s: 0.5, l: 0.7 },
+        cricket: { h: 0.25, s: 0.8, l: 0.65 },
+        bird: { h: 0.58, s: 0.75, l: 0.72 },
+        water: { h: 0.52, s: 0.8, l: 0.75 },
+        fire: { h: 0.08, s: 0.9, l: 0.6 },
+        marimba: { h: 0.12, s: 0.65, l: 0.55 },
+      };
+
+      // Initialize audio levels and volumes
+      layers.forEach((layer) => {
+        audioLayers[layer] = 0;
+        layerVolumes[layer] = 0.5; // Default 50%
+      });
+
+      // ===== Init Function =====
+      function init() {
+        clock = new THREE.Clock();
+        raycaster = new THREE.Raycaster();
+
+        // Scene
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000510);
+        scene.fog = new THREE.Fog(0x000510, 10, 50);
+
+        // Camera
+        camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          100,
+        );
+        camera.position.set(0, 1.6, 3);
+
+        // Renderer with WebXR optimizations
+        renderer = new THREE.WebGLRenderer({
+          antialias: false,
+          powerPreference: "high-performance",
+        });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.BasicShadowMap;
+        renderer.xr.enabled = true;
+        renderer.xr.setFramebufferScaleFactor(1.0);
+
+        document.body.appendChild(renderer.domElement);
+
+        // VR Button with hand tracking
+        const vrButton = VRButton.createButton(renderer, {
+          optionalFeatures: ["hand-tracking", "local-floor"],
+        });
+        document.body.appendChild(vrButton);
+        vrButton.style.display = "none";
+        document.getElementById("vr-button").addEventListener("click", () => {
+          vrButton.click();
+        });
+
+        // ===== Lighting =====
+        const ambientLight = new THREE.AmbientLight(0x404060, 0.5);
+        scene.add(ambientLight);
+
+        const pointLight1 = new THREE.PointLight(0x6699ff, 1.5, 20);
+        pointLight1.position.set(5, 5, 5);
+        pointLight1.castShadow = true;
+        pointLight1.shadow.mapSize.width = 512;
+        pointLight1.shadow.mapSize.height = 512;
+        scene.add(pointLight1);
+
+        const pointLight2 = new THREE.PointLight(0xff66aa, 1.2, 20);
+        pointLight2.position.set(-5, 3, -5);
+        scene.add(pointLight2);
+
+        const pointLight3 = new THREE.PointLight(0x66ffaa, 1.0, 20);
+        pointLight3.position.set(0, 6, 0);
+        scene.add(pointLight3);
+
+        // ===== Floor =====
+        const floorGeometry = new THREE.CircleGeometry(10, 32);
+        const floorMaterial = new THREE.MeshStandardMaterial({
+          color: 0x1a1a2e,
+          roughness: 0.8,
+          metalness: 0.2,
+        });
+        floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        const gridHelper = new THREE.GridHelper(20, 20, 0x667eea, 0x334477);
+        gridHelper.position.y = 0.01;
+        scene.add(gridHelper);
+
+        // ===== Skybox =====
+        createSkybox();
+
+        // ===== Particle System (Instanced) =====
+        createInstancedParticles();
+
+        // ===== 3D Control Panel =====
+        create3DControlPanel();
+
+        // ===== Controllers & Hands =====
+        setupVRControls();
+
+        // ===== Teleport System =====
+        setupTeleportation();
+
+        // ===== Event Listeners =====
+        window.addEventListener("resize", onWindowResize);
+
+        // XR session events
+        renderer.xr.addEventListener("sessionstart", () => {
+          isVRActive = true;
+          document.getElementById("info").style.display = "none";
+          document.getElementById("vr-button").style.display = "none";
+          console.log("VR Session started - Quest 3 optimizations active");
+        });
+
+        renderer.xr.addEventListener("sessionend", () => {
+          isVRActive = false;
+          document.getElementById("info").style.display = "block";
+          document.getElementById("vr-button").style.display = "block";
+        });
+      }
+
+      // ===== 3D Control Panel =====
+      function create3DControlPanel() {
+        controlPanelGroup = new THREE.Group();
+
+        // Panel background
+        const panelWidth = 2.5;
+        const panelHeight = 3.0;
+        const panelGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
+        const panelMaterial = new THREE.MeshStandardMaterial({
+          color: 0x0a0a1e,
+          transparent: true,
+          opacity: 0.95,
+          side: THREE.DoubleSide,
+        });
+        const panelMesh = new THREE.Mesh(panelGeometry, panelMaterial);
+        controlPanelGroup.add(panelMesh);
+
+        // Border
+        const borderGeometry = new THREE.EdgesGeometry(panelGeometry);
+        const borderMaterial = new THREE.LineBasicMaterial({
+          color: 0x667eea,
+          linewidth: 2,
+        });
+        const borderMesh = new THREE.LineSegments(
+          borderGeometry,
+          borderMaterial,
+        );
+        controlPanelGroup.add(borderMesh);
+
+        // Title
+        createTextMesh(
+          "ETUDE#1 CONTROLS",
+          0,
+          1.35,
+          0.12,
+          0xffffff,
+          controlPanelGroup,
+        );
+
+        // Layer controls
+        let yPos = 1.1;
+        const rowHeight = 0.17;
+
+        layers.forEach((layer, index) => {
+          const color = new THREE.Color();
+          const lc = layerColors[layer];
+          color.setHSL(lc.h, lc.s, lc.l);
+
+          // Layer name
+          createTextMesh(
+            layerNames[layer],
+            -1.1,
+            yPos,
+            0.08,
+            color.getHex(),
+            controlPanelGroup,
+          );
+
+          // Volume indicator (bar)
+          const barWidth = 0.8;
+          const barHeight = 0.05;
+          const barGeometry = new THREE.PlaneGeometry(barWidth, barHeight);
+          const barBg = new THREE.Mesh(
+            barGeometry,
+            new THREE.MeshBasicMaterial({
+              color: 0x222244,
+              transparent: true,
+              opacity: 0.6,
+            }),
+          );
+          barBg.position.set(0.3, yPos, 0.01);
+          controlPanelGroup.add(barBg);
+
+          // Volume fill bar
+          const fillBar = new THREE.Mesh(
+            new THREE.PlaneGeometry(barWidth * layerVolumes[layer], barHeight),
+            new THREE.MeshBasicMaterial({ color: color.getHex() }),
+          );
+          fillBar.position.set(
+            0.3 - barWidth / 2 + (barWidth * layerVolumes[layer]) / 2,
+            yPos,
+            0.02,
+          );
+          fillBar.userData = {
+            type: "volumeBar",
+            layer: layer,
+            maxWidth: barWidth,
+          };
+          controlPanelGroup.add(fillBar);
+
+          // Volume percentage text
+          const volText = createTextMesh(
+            `${Math.round(layerVolumes[layer] * 100)}%`,
+            0.85,
+            yPos,
+            0.07,
+            0xffffff,
+            controlPanelGroup,
+          );
+          volText.userData = { type: "volumeText", layer: layer };
+
+          // Interactive buttons for volume control
+          const decreaseBtn = createButton(
+            "-",
+            -0.35,
+            yPos,
+            0.15,
+            0.08,
+            layer,
+            "decrease",
+          );
+          const increaseBtn = createButton(
+            "+",
+            0.95,
+            yPos,
+            0.15,
+            0.08,
+            layer,
+            "increase",
+          );
+          controlPanelGroup.add(decreaseBtn);
+          controlPanelGroup.add(increaseBtn);
+
+          yPos -= rowHeight;
+        });
+
+        // Instructions at bottom
+        createTextMesh(
+          "Point & Squeeze to adjust",
+          0,
+          -1.35,
+          0.07,
+          0x888899,
+          controlPanelGroup,
+        );
+
+        // Position panel in front of user
+        controlPanelGroup.position.set(0, 1.5, -2);
+        controlPanelGroup.visible = false;
+        scene.add(controlPanelGroup);
+      }
+
+      function createTextMesh(text, x, y, size, color, parent) {
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        canvas.width = 512;
+        canvas.height = 128;
+
+        context.fillStyle = `#${color.toString(16).padStart(6, "0")}`;
+        context.font = `bold ${size * 400}px "Courier New"`;
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillText(text, 256, 64);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+          side: THREE.DoubleSide,
+        });
+
+        const mesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(size * text.length * 0.6, size * 1.5),
+          material,
+        );
+        mesh.position.set(x, y, 0.01);
+        parent.add(mesh);
+
+        return mesh;
+      }
+
+      function createButton(label, x, y, width, height, layer, action) {
+        const group = new THREE.Group();
+
+        // Button background
+        const btnGeometry = new THREE.PlaneGeometry(width, height);
+        const btnMaterial = new THREE.MeshBasicMaterial({
+          color: 0x667eea,
+          transparent: true,
+          opacity: 0.7,
+        });
+        const btnMesh = new THREE.Mesh(btnGeometry, btnMaterial);
+        btnMesh.userData = {
+          type: "button",
+          layer: layer,
+          action: action,
+          material: btnMaterial,
+          defaultColor: 0x667eea,
+          hoverColor: 0x8899ff,
+        };
+        group.add(btnMesh);
+
+        // Button label
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        canvas.width = 128;
+        canvas.height = 128;
+
+        context.fillStyle = "#ffffff";
+        context.font = 'bold 80px "Courier New"';
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillText(label, 64, 64);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const labelMesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(width * 0.6, height * 0.6),
+          new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+          }),
+        );
+        labelMesh.position.z = 0.01;
+        group.add(labelMesh);
+
+        group.position.set(x, y, 0.02);
+        intersectedObjects.push(btnMesh);
+
+        return group;
+      }
+
+      function updateVolumeDisplay(layer, volume) {
+        controlPanelGroup.children.forEach((child) => {
+          if (
+            child.userData.type === "volumeBar" &&
+            child.userData.layer === layer
+          ) {
+            const maxWidth = child.userData.maxWidth;
+            child.geometry.dispose();
+            child.geometry = new THREE.PlaneGeometry(maxWidth * volume, 0.05);
+            child.position.x = 0.3 - maxWidth / 2 + (maxWidth * volume) / 2;
+          }
+          if (
+            child.userData.type === "volumeText" &&
+            child.userData.layer === layer
+          ) {
+            // Update text
+            child.material.map.dispose();
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            canvas.width = 512;
+            canvas.height = 128;
+            context.fillStyle = "#ffffff";
+            context.font = 'bold 28px "Courier New"';
+            context.textAlign = "center";
+            context.textBaseline = "middle";
+            context.fillText(`${Math.round(volume * 100)}%`, 256, 64);
+            child.material.map = new THREE.CanvasTexture(canvas);
+            child.material.needsUpdate = true;
+          }
+        });
+      }
+
+      function toggleControlPanel() {
+        isPanelVisible = !isPanelVisible;
+        controlPanelGroup.visible = isPanelVisible;
+
+        if (isPanelVisible) {
+          // Position panel in front of camera
+          const cameraWorldPos = new THREE.Vector3();
+          const cameraWorldDir = new THREE.Vector3();
+          renderer.xr.getCamera().getWorldPosition(cameraWorldPos);
+          renderer.xr.getCamera().getWorldDirection(cameraWorldDir);
+
+          controlPanelGroup.position
+            .copy(cameraWorldPos)
+            .add(cameraWorldDir.multiplyScalar(2));
+          controlPanelGroup.position.y = cameraWorldPos.y;
+          controlPanelGroup.lookAt(cameraWorldPos);
+        }
+      }
+
+      // ===== Skybox Creation =====
+      function createSkybox() {
+        const skyGeometry = new THREE.SphereGeometry(50, 32, 32);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = 2048;
+        canvas.height = 1024;
+        const ctx = canvas.getContext("2d");
+
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, "#1a0530");
+        gradient.addColorStop(0.3, "#6a1580");
+        gradient.addColorStop(0.6, "#d020a0");
+        gradient.addColorStop(1, "#ff4090");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#ffffff";
+        for (let i = 0; i < 2000; i++) {
+          const x = Math.random() * canvas.width;
+          const y = Math.random() * canvas.height;
+          const size = Math.random() * 2;
+          const alpha = Math.random() * 0.8 + 0.2;
+          ctx.globalAlpha = alpha;
+          ctx.fillRect(x, y, size, size);
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const skyMaterial = new THREE.MeshBasicMaterial({
+          map: texture,
+          side: THREE.BackSide,
+        });
+
+        skybox = new THREE.Mesh(skyGeometry, skyMaterial);
+        scene.add(skybox);
+      }
+
+      // ===== Instanced Particle System =====
+      function createInstancedParticles() {
+        const particleCount = 1100;
+        const particlesPerLayer = Math.floor(particleCount / layers.length);
+
+        const geometry = new THREE.SphereGeometry(0.05, 8, 8);
+        const material = new THREE.MeshPhongMaterial({
+          emissive: 0x667eea,
+          emissiveIntensity: 0.5,
+          transparent: true,
+          opacity: 0.85,
+        });
+
+        particleSystem = {
+          mesh: new THREE.InstancedMesh(geometry, material, particleCount),
+          particles: [],
+        };
+
+        const dummy = new THREE.Object3D();
+        const color = new THREE.Color();
+
+        for (let i = 0; i < particleCount; i++) {
+          const layerIndex = Math.floor(i / particlesPerLayer);
+          const layer = layers[Math.min(layerIndex, layers.length - 1)];
+          const layerAngleOffset = (layerIndex / layers.length) * Math.PI * 2;
+
+          const angle = Math.random() * Math.PI * 0.5 + layerAngleOffset;
+          const radius = Math.random() * 8 + 4;
+          const height = (Math.random() - 0.5) * 6;
+
+          const position = new THREE.Vector3(
+            Math.cos(angle) * radius,
+            height + 1.6,
+            Math.sin(angle) * radius,
+          );
+
+          const velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.01,
+            (Math.random() - 0.5) * 0.008,
+            (Math.random() - 0.5) * 0.01,
+          );
+
+          const layerColor = layerColors[layer];
+          color.setHSL(
+            layerColor.h + (Math.random() - 0.5) * 0.08,
+            layerColor.s + (Math.random() - 0.5) * 0.15,
+            layerColor.l + (Math.random() - 0.5) * 0.12,
+          );
+
+          particleSystem.particles.push({
+            position: position,
+            velocity: velocity,
+            layer: layer,
+            layerIndex: layerIndex,
+            baseColor: color.clone(),
+            scale: 1,
+          });
+
+          dummy.position.copy(position);
+          dummy.updateMatrix();
+          particleSystem.mesh.setMatrixAt(i, dummy.matrix);
+          particleSystem.mesh.setColorAt(i, color);
+        }
+
+        particleSystem.mesh.castShadow = true;
+        particleSystem.mesh.receiveShadow = true;
+        scene.add(particleSystem.mesh);
+      }
+
+      // ===== VR Controls Setup =====
+      function setupVRControls() {
+        const controllerModelFactory = new XRControllerModelFactory();
+        const handModelFactory = new XRHandModelFactory();
+
+        // Controller 1
+        controller1 = renderer.xr.getController(0);
+        controller1.addEventListener("selectstart", onSelectStart);
+        controller1.addEventListener("selectend", onSelectEnd);
+        controller1.addEventListener("squeezestart", onSqueezeStart);
+        controller1.addEventListener("squeezeend", onSqueezeEnd);
+        scene.add(controller1);
+
+        controllerGrip1 = renderer.xr.getControllerGrip(0);
+        controllerGrip1.add(
+          controllerModelFactory.createControllerModel(controllerGrip1),
+        );
+        scene.add(controllerGrip1);
+
+        hand1 = renderer.xr.getHand(0);
+        hand1.add(handModelFactory.createHandModel(hand1, "mesh"));
+        scene.add(hand1);
+
+        // Controller 2
+        controller2 = renderer.xr.getController(1);
+        controller2.addEventListener("selectstart", onSelectStart);
+        controller2.addEventListener("selectend", onSelectEnd);
+        controller2.addEventListener("squeezestart", onSqueezeStart);
+        controller2.addEventListener("squeezeend", onSqueezeEnd);
+        scene.add(controller2);
+
+        controllerGrip2 = renderer.xr.getControllerGrip(1);
+        controllerGrip2.add(
+          controllerModelFactory.createControllerModel(controllerGrip2),
+        );
+        scene.add(controllerGrip2);
+
+        hand2 = renderer.xr.getHand(1);
+        hand2.add(handModelFactory.createHandModel(hand2, "mesh"));
+        scene.add(hand2);
+
+        // Add visual ray to controllers
+        const geometry = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(0, 0, -1),
+        ]);
+        const material = new THREE.LineBasicMaterial({ color: 0x667eea });
+        const line1 = new THREE.Line(geometry, material);
+        line1.scale.z = 5;
+        controller1.add(line1);
+
+        const line2 = new THREE.Line(geometry, material.clone());
+        line2.scale.z = 5;
+        controller2.add(line2);
+
+        // Listen for button presses to toggle menu
+        const session = renderer.xr.getSession();
+        if (session) {
+          session.addEventListener("inputsourceschange", (event) => {
+            console.log("Input sources changed", event);
+          });
+        }
+      }
+
+      // ===== Teleportation Setup =====
+      function setupTeleportation() {
+        const markerGeometry = new THREE.RingGeometry(0.25, 0.3, 32);
+        const markerMaterial = new THREE.MeshBasicMaterial({
+          color: 0x667eea,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.8,
+        });
+        teleportMarker = new THREE.Mesh(markerGeometry, markerMaterial);
+        teleportMarker.rotation.x = -Math.PI / 2;
+        teleportMarker.visible = false;
+        scene.add(teleportMarker);
+
+        const points = [];
+        for (let i = 0; i <= 30; i++) {
+          points.push(new THREE.Vector3(0, 0, 0));
+        }
+        const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        const lineMaterial = new THREE.LineBasicMaterial({
+          color: 0x667eea,
+          transparent: true,
+          opacity: 0.6,
+        });
+        teleportLine = new THREE.Line(lineGeometry, lineMaterial);
+        teleportLine.visible = false;
+        scene.add(teleportLine);
+      }
+
+      // ===== Teleport Arc Calculation =====
+      function updateTeleportArc(controller) {
+        const controllerPos = new THREE.Vector3();
+        const controllerDir = new THREE.Vector3();
+
+        controller.getWorldPosition(controllerPos);
+        controller.getWorldDirection(controllerDir);
+
+        const points = [];
+        const velocity = 5;
+        const gravity = 9.8;
+        const segments = 30;
+        let hitGround = false;
+        let hitPoint = null;
+
+        for (let i = 0; i <= segments; i++) {
+          const t = i / segments;
+          const time = t * 1.5;
+
+          const point = new THREE.Vector3(
+            controllerPos.x + controllerDir.x * velocity * time,
+            controllerPos.y +
+              controllerDir.y * velocity * time -
+              0.5 * gravity * time * time,
+            controllerPos.z + controllerDir.z * velocity * time,
+          );
+
+          if (point.y <= 0.01 && !hitGround) {
+            hitGround = true;
+            hitPoint = new THREE.Vector3(point.x, 0.01, point.z);
+          }
+
+          points.push(point);
+
+          if (hitGround) break;
+        }
+
+        teleportLine.geometry.setFromPoints(points);
+
+        if (hitPoint && hitPoint.length() < 10) {
+          teleportMarker.position.copy(hitPoint);
+          teleportMarker.visible = true;
+          return hitPoint;
+        } else {
+          teleportMarker.visible = false;
+          return null;
+        }
+      }
+
+      // ===== Raycasting for UI interaction =====
+      function checkUIIntersection(controller) {
+        if (!isPanelVisible) return null;
+
+        const tempMatrix = new THREE.Matrix4();
+        tempMatrix.identity().extractRotation(controller.matrixWorld);
+
+        raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+        raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+        const intersects = raycaster.intersectObjects(
+          intersectedObjects,
+          false,
+        );
+
+        // Reset all button colors
+        intersectedObjects.forEach((obj) => {
+          if (obj.userData.type === "button") {
+            obj.material.color.setHex(obj.userData.defaultColor);
+          }
+        });
+
+        if (intersects.length > 0) {
+          const intersected = intersects[0].object;
+          if (intersected.userData.type === "button") {
+            intersected.material.color.setHex(intersected.userData.hoverColor);
+            return intersected;
+          }
+        }
+
+        return null;
+      }
+
+      // ===== Controller Events =====
+      let teleportTarget = null;
+      let hoveredButton1 = null;
+      let hoveredButton2 = null;
+
+      function onSelectStart(event) {
+        if (isPanelVisible) {
+          // Check for UI interaction
+          const hoveredButton = checkUIIntersection(event.target);
+          if (hoveredButton) {
+            const layer = hoveredButton.userData.layer;
+            const action = hoveredButton.userData.action;
+
+            if (action === "increase") {
+              layerVolumes[layer] = Math.min(1.0, layerVolumes[layer] + 0.1);
+            } else if (action === "decrease") {
+              layerVolumes[layer] = Math.max(0.0, layerVolumes[layer] - 0.1);
+            }
+
+            updateVolumeDisplay(layer, layerVolumes[layer]);
+            return;
+          }
+        }
+
+        // Show teleport if not interacting with UI
+        teleportLine.visible = true;
+        teleportTarget = updateTeleportArc(event.target);
+      }
+
+      function onSelectEnd(event) {
+        if (teleportTarget) {
+          const offset = renderer.xr.getCamera().position.clone();
+          offset.y = 0;
+          const newPosition = teleportTarget.clone().sub(offset);
+          camera.position.add(newPosition);
+        }
+        teleportLine.visible = false;
+        teleportMarker.visible = false;
+        teleportTarget = null;
+      }
+
+      function onSqueezeStart(event) {
+        // Toggle control panel
+        toggleControlPanel();
+      }
+
+      function onSqueezeEnd(event) {
+        // Nothing on release
+      }
+
+      // ===== Particle Animation =====
+      function animateParticles(deltaTime) {
+        const dummy = new THREE.Object3D();
+        const color = new THREE.Color();
+        const time = clock.getElapsedTime();
+
+        for (let i = 0; i < particleSystem.particles.length; i++) {
+          const particle = particleSystem.particles[i];
+          const audioLevel =
+            audioLayers[particle.layer] * layerVolumes[particle.layer] || 0;
+
+          const force = new THREE.Vector3(0, 0, 0);
+          let neighborCount = 0;
+          const center = new THREE.Vector3(0, 0, 0);
+          const avgVel = new THREE.Vector3(0, 0, 0);
+
+          const startIdx =
+            particle.layerIndex *
+            Math.floor(particleSystem.particles.length / layers.length);
+          const endIdx = Math.min(
+            startIdx + 100,
+            particleSystem.particles.length,
+          );
+
+          for (let j = startIdx; j < endIdx; j++) {
+            if (i === j) continue;
+
+            const neighbor = particleSystem.particles[j];
+            const diff = neighbor.position.clone().sub(particle.position);
+            const distSq = diff.lengthSq();
+            const interactionRange = 1.5 + audioLevel * 1.5;
+
+            if (distSq < interactionRange * interactionRange && distSq > 0.01) {
+              const dist = Math.sqrt(distSq);
+
+              center.add(neighbor.position);
+              avgVel.add(neighbor.velocity);
+
+              if (dist < 0.3) {
+                const repel = ((0.3 - dist) / 0.3) * 0.02;
+                force.sub(diff.normalize().multiplyScalar(repel));
+              }
+
+              neighborCount++;
+            }
+          }
+
+          if (neighborCount > 0) {
+            center.divideScalar(neighborCount).sub(particle.position);
+            force.add(center.multiplyScalar(0.003));
+
+            avgVel.divideScalar(neighborCount).sub(particle.velocity);
+            force.add(avgVel.multiplyScalar(0.015));
+          }
+
+          const layerAngleOffset =
+            (particle.layerIndex / layers.length) * Math.PI * 2;
+          const homePos = new THREE.Vector3(
+            Math.cos(layerAngleOffset + time * 0.1) * 6,
+            Math.sin(time * 0.3 + particle.layerIndex) * 2 + 1.6,
+            Math.sin(layerAngleOffset + time * 0.1) * 6,
+          );
+          const toHome = homePos
+            .sub(particle.position)
+            .multiplyScalar(0.001 + audioLevel * 0.002);
+          force.add(toHome);
+
+          particle.velocity.add(force);
+          particle.velocity.multiplyScalar(0.96);
+
+          const maxSpeed = 0.05 * (1 + audioLevel * 2);
+          if (particle.velocity.length() > maxSpeed) {
+            particle.velocity.normalize().multiplyScalar(maxSpeed);
+          }
+
+          particle.position.add(particle.velocity);
+
+          const boundaryRadius = 10;
+          const distFromCenter = particle.position.length();
+          if (distFromCenter > boundaryRadius) {
+            const pushBack =
+              ((distFromCenter - boundaryRadius) / distFromCenter) * 0.1;
+            particle.position.multiplyScalar(1 - pushBack);
+          }
+
+          const brightnessMult = 1.0 + audioLevel * 1.5;
+          const layerColor = layerColors[particle.layer];
+          color.setHSL(
+            layerColor.h,
+            layerColor.s,
+            Math.min(layerColor.l * brightnessMult, 0.95),
+          );
+
+          const scale = 1.0 + audioLevel * 3.0;
+
+          dummy.position.copy(particle.position);
+          dummy.scale.setScalar(scale);
+          dummy.updateMatrix();
+
+          particleSystem.mesh.setMatrixAt(i, dummy.matrix);
+          particleSystem.mesh.setColorAt(i, color);
+        }
+
+        particleSystem.mesh.instanceMatrix.needsUpdate = true;
+        if (particleSystem.mesh.instanceColor) {
+          particleSystem.mesh.instanceColor.needsUpdate = true;
+        }
+      }
+
+      // ===== Window Resize =====
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      // ===== Animation Loop =====
+      function animate() {
+        renderer.setAnimationLoop(render);
+      }
+
+      function render() {
+        const deltaTime = clock.getDelta();
+        const time = clock.getElapsedTime();
+
+        if (skybox) {
+          skybox.rotation.y += 0.0001;
+        }
+
+        animateParticles(deltaTime);
+
+        if (teleportLine.visible) {
+          if (controller1.visible) {
+            teleportTarget = updateTeleportArc(controller1);
+          } else if (controller2.visible) {
+            teleportTarget = updateTeleportArc(controller2);
+          }
+        }
+
+        // Check for UI hover
+        if (isPanelVisible) {
+          hoveredButton1 = checkUIIntersection(controller1);
+          hoveredButton2 = checkUIIntersection(controller2);
+        }
+
+        // Hand tracking detection
+        if (hand1 && hand1.joints && hand1.joints["index-finger-tip"]) {
+          if (controllerGrip1) controllerGrip1.visible = false;
+        } else {
+          if (controllerGrip1) controllerGrip1.visible = true;
+        }
+
+        if (hand2 && hand2.joints && hand2.joints["index-finger-tip"]) {
+          if (controllerGrip2) controllerGrip2.visible = false;
+        } else {
+          if (controllerGrip2) controllerGrip2.visible = true;
+        }
+
+        // Simulate audio levels
+        if (isVRActive) {
+          layers.forEach((layer, index) => {
+            audioLayers[layer] =
+              (Math.sin(time * (0.5 + index * 0.1)) + 1) * 0.3;
+          });
+        }
+
+        renderer.render(scene, camera);
+      }
+
+      // ===== Start =====
+      init();
+      animate();
+    </script>
+  </body>
+</html>

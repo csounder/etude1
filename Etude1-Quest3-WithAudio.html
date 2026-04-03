@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Etude#1 VR + Audio - Quest 3</title>
+<style>
+body { margin: 0; overflow: hidden; font-family: 'Courier New'; background: #000; }
+#info { position: absolute; top: 10px; left: 10px; color: #fff; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 6px; font-size: 12px; z-index: 100; max-width: 250px; }
+#vr-button { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 14px 28px; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(102,126,234,0.6); z-index: 100; }
+</style>
+</head>
+<body>
+<div id="info"><strong>Etude#1 VR</strong><br>Squeeze: Menu<br>Trigger: Teleport<br>Use menu to start audio</div>
+<button id="vr-button">Enter VR</button>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+
+// Musical scales
+const bPhrygian = [47, 48, 50, 52, 54, 55, 57, 59, 60, 62, 64, 66, 67, 69, 71, 72];
+const chordTones = [35, 38, 40, 43, 47, 50, 52, 55, 59];
+
+// Audio state
+let csound = null;
+let isPlaying = false;
+let composerTimers = [];
+
+// Scene
+let camera, scene, renderer, clock;
+let controller1, controller2;
+let particleSystem;
+let controlPanel, isPanelVisible = false;
+let audioButton, statusText;
+
+const layers = ['fm', 'drone', 'noise', 'rumble', 'bellchord', 'pwm', 'thunder', 'flute', 'cello', 'cricket', 'bird', 'water', 'fire', 'marimba'];
+const layerColors = {
+    fm: {h:0.05, s:0.8, l:0.65}, drone: {h:0.15, s:0.75, l:0.6}, noise: {h:0.55, s:0.6, l:0.7},
+    rumble: {h:0.75, s:0.7, l:0.5}, bellchord: {h:0.9, s:0.65, l:0.75}, pwm: {h:0.65, s:0.7, l:0.65},
+    thunder: {h:0.78, s:0.6, l:0.55}, flute: {h:0.35, s:0.7, l:0.7}, cello: {h:0.5, s:0.5, l:0.7},
+    cricket: {h:0.25, s:0.8, l:0.65}, bird: {h:0.58, s:0.75, l:0.72}, water: {h:0.52, s:0.8, l:0.75},
+    fire: {h:0.08, s:0.9, l:0.6}, marimba: {h:0.12, s:0.65, l:0.55}
+};
+let audioLayers = {}, layerVolumes = {};
+layers.forEach(l => { audioLayers[l] = 0; layerVolumes[l] = 0.5; });
+
+function rand(min, max) { return Math.random() * (max - min) + min; }
+function randInt(min, max) { return Math.floor(rand(min, max)); }
+function choose(arr) { return arr[randInt(0, arr.length)]; }
+
+function init() {
+    clock = new THREE.Clock();
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000510);
+    scene.fog = new THREE.Fog(0x000510, 10, 50);
+    
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 1.6, 3);
+    
+    renderer = new THREE.WebGLRenderer({ antialias: false });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.xr.enabled = true;
+    document.body.appendChild(renderer.domElement);
+    
+    const vrButton = VRButton.createButton(renderer, { optionalFeatures: ['hand-tracking', 'local-floor'] });
+    document.body.appendChild(vrButton);
+    vrButton.style.display = 'none';
+    document.getElementById('vr-button').onclick = () => vrButton.click();
+    
+    // Lighting
+    scene.add(new THREE.AmbientLight(0x404060, 0.5));
+    const light = new THREE.PointLight(0x6699ff, 1.5, 20);
+    light.position.set(5, 5, 5);
+    scene.add(light);
+    
+    // Floor
+    const floor = new THREE.Mesh(
+        new THREE.CircleGeometry(10, 32),
+        new THREE.MeshStandardMaterial({ color: 0x1a1a2e })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+    
+    // Grid
+    scene.add(new THREE.GridHelper(20, 20, 0x667eea, 0x334477));
+    
+    // Skybox
+    const sky = new THREE.Mesh(
+        new THREE.SphereGeometry(50, 32, 32),
+        new THREE.MeshBasicMaterial({ color: 0x1a0530, side: THREE.BackSide })
+    );
+    scene.add(sky);
+    
+    // Particles
+    createParticles();
+    
+    // Control panel
+    createControlPanel();
+    
+    // Controllers
+    setupControllers();
+    
+    renderer.xr.addEventListener('sessionstart', () => {
+        document.getElementById('info').style.display = 'none';
+        document.getElementById('vr-button').style.display = 'none';
+    });
+    
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+}
+
+function createParticles() {
+    const count = 800;
+    const geometry = new THREE.SphereGeometry(0.05, 8, 8);
+    const material = new THREE.MeshPhongMaterial({ emissive: 0x667eea, emissiveIntensity: 0.5, transparent: true, opacity: 0.85 });
+    
+    particleSystem = {
+        mesh: new THREE.InstancedMesh(geometry, material, count),
+        particles: []
+    };
+    
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
+    
+    for (let i = 0; i < count; i++) {
+        const layerIndex = Math.floor(i / (count / layers.length));
+        const layer = layers[Math.min(layerIndex, layers.length - 1)];
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * 8 + 4;
+        
+        const position = new THREE.Vector3(
+            Math.cos(angle) * radius,
+            (Math.random() - 0.5) * 4 + 1.6,
+            Math.sin(angle) * radius
+        );
+        
+        const lc = layerColors[layer];
+        color.setHSL(lc.h, lc.s, lc.l);
+        
+        particleSystem.particles.push({
+            position: position,
+            velocity: new THREE.Vector3((Math.random() - 0.5) * 0.01, (Math.random() - 0.5) * 0.008, (Math.random() - 0.5) * 0.01),
+            layer: layer,
+            layerIndex: layerIndex
+        });
+        
+        dummy.position.copy(position);
+        dummy.updateMatrix();
+        particleSystem.mesh.setMatrixAt(i, dummy.matrix);
+        particleSystem.mesh.setColorAt(i, color);
+    }
+    
+    scene.add(particleSystem.mesh);
+}
+
+function createControlPanel() {
+    controlPanel = new THREE.Group();
+    
+    // Background
+    const bg = new THREE.Mesh(
+        new THREE.PlaneGeometry(2, 2.5),
+        new THREE.MeshBasicMaterial({ color: 0x0a0a1e, transparent: true, opacity: 0.95 })
+    );
+    controlPanel.add(bg);
+    
+    // Audio button
+    audioButton = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.5, 0.4),
+        new THREE.MeshBasicMaterial({ color: 0x44aa44 })
+    );
+    audioButton.position.set(0, 0.8, 0.01);
+    audioButton.userData = { type: 'audioButton' };
+    controlPanel.add(audioButton);
+    
+    // Status text (placeholder)
+    statusText = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.8, 0.3),
+        new THREE.MeshBasicMaterial({ color: 0x2222aa, transparent: true, opacity: 0.5 })
+    );
+    statusText.position.set(0, 0.3, 0.01);
+    controlPanel.add(statusText);
+    
+    controlPanel.position.set(0, 1.5, -2);
+    controlPanel.visible = false;
+    scene.add(controlPanel);
+}
+
+function setupControllers() {
+    const controllerModelFactory = new XRControllerModelFactory();
+    
+    controller1 = renderer.xr.getController(0);
+    controller1.addEventListener('selectstart', onSelect);
+    controller1.addEventListener('squeezestart', () => togglePanel());
+    scene.add(controller1);
+    
+    const grip1 = renderer.xr.getControllerGrip(0);
+    grip1.add(controllerModelFactory.createControllerModel(grip1));
+    scene.add(grip1);
+    
+    controller2 = renderer.xr.getController(1);
+    controller2.addEventListener('selectstart', onSelect);
+    controller2.addEventListener('squeezestart', () => togglePanel());
+    scene.add(controller2);
+    
+    const grip2 = renderer.xr.getControllerGrip(1);
+    grip2.add(controllerModelFactory.createControllerModel(grip2));
+    scene.add(grip2);
+}
+
+function togglePanel() {
+    isPanelVisible = !isPanelVisible;
+    controlPanel.visible = isPanelVisible;
+    if (isPanelVisible) {
+        const camPos = new THREE.Vector3();
+        const camDir = new THREE.Vector3();
+        renderer.xr.getCamera().getWorldPosition(camPos);
+        renderer.xr.getCamera().getWorldDirection(camDir);
+        controlPanel.position.copy(camPos).add(camDir.multiplyScalar(2));
+        controlPanel.position.y = camPos.y;
+        controlPanel.lookAt(camPos);
+    }
+}
+
+function onSelect(event) {
+    if (!isPanelVisible) return;
+    
+    const raycaster = new THREE.Raycaster();
+    const tempMatrix = new THREE.Matrix4();
+    tempMatrix.identity().extractRotation(event.target.matrixWorld);
+    raycaster.ray.origin.setFromMatrixPosition(event.target.matrixWorld);
+    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+    
+    const intersects = raycaster.intersectObject(audioButton);
+    if (intersects.length > 0) {
+        if (!isPlaying) startAudio();
+        else stopAudio();
+    }
+}
+
+async function startAudio() {
+    try {
+        audioButton.material.color.setHex(0xff8800);
+        if (!csound) {
+            const { Csound } = await import('https://unpkg.com/@csound/browser@6.18.7/dist/csound.js');
+            csound = await Csound();
+            await csound.setOption('-odac');
+            
+            // Simplified orchestra
+            const orc = `
+sr = 44100
+ksmps = 32
+nchnls = 2
+0dbfs = 1
+
+gkFade init 0
+
+instr Drone
+iVol chnget "vol_drone"
+kEnv linseg 0, 2, 1, p3-4, 1, 2, 0
+aL poscil 0.15 * iVol * kEnv * gkFade, 110
+aR poscil 0.15 * iVol * kEnv * gkFade, 110.5
+outs aL, aR
+chnset kEnv, "rms_drone"
+endin
+
+instr FadeIn
+gkFade linseg 0, 5, 1, p3-5, 1
+endin
+`;
+            await csound.compileOrc(orc);
+            await csound.start();
+            
+            layers.forEach(l => csound.setControlChannel(`vol_${l}`, layerVolumes[l]));
+        }
+        
+        isPlaying = true;
+        csound.inputMessage('i "FadeIn" 0 3600');
+        csound.inputMessage('i "Drone" 0 3600');
+        audioButton.material.color.setHex(0xff4444);
+        
+        // Read audio levels
+        setInterval(async () => {
+            if (csound && isPlaying) {
+                try {
+                    const level = await csound.getControlChannel('rms_drone');
+                    layers.forEach(l => audioLayers[l] = level * 0.5);
+                } catch(e) {}
+            }
+        }, 50);
+        
+    } catch(e) {
+        console.error('Audio error:', e);
+        audioButton.material.color.setHex(0xff0000);
+    }
+}
+
+function stopAudio() {
+    isPlaying = false;
+    audioButton.material.color.setHex(0x44aa44);
+}
+
+function animate() {
+    renderer.setAnimationLoop(render);
+}
+
+function render() {
+    const time = clock.getElapsedTime();
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
+    
+    for (let i = 0; i < particleSystem.particles.length; i++) {
+        const p = particleSystem.particles[i];
+        const audioLevel = audioLayers[p.layer] * layerVolumes[p.layer];
+        
+        // Simple movement
+        p.position.add(p.velocity);
+        p.velocity.multiplyScalar(0.98);
+        
+        // Boundary
+        if (p.position.length() > 10) {
+            p.position.multiplyScalar(0.9);
+        }
+        
+        // Audio-reactive
+        const lc = layerColors[p.layer];
+        const brightness = 1.0 + audioLevel * 2;
+        color.setHSL(lc.h, lc.s, Math.min(lc.l * brightness, 0.95));
+        const scale = 1.0 + audioLevel * 4;
+        
+        dummy.position.copy(p.position);
+        dummy.scale.setScalar(scale);
+        dummy.updateMatrix();
+        
+        particleSystem.mesh.setMatrixAt(i, dummy.matrix);
+        particleSystem.mesh.setColorAt(i, color);
+    }
+    
+    particleSystem.mesh.instanceMatrix.needsUpdate = true;
+    particleSystem.mesh.instanceColor.needsUpdate = true;
+    
+    renderer.render(scene, camera);
+}
+
+init();
+animate();
+</script>
+</body>
+</html>

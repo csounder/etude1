@@ -1,0 +1,1939 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Etude#1 VR Complete - Quest 3</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        font-family: "Courier New", monospace;
+      }
+      #info {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 11px;
+        z-index: 100;
+        max-width: 220px;
+        line-height: 1.5;
+      }
+      #vr-button {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 16px 32px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.8);
+        z-index: 100;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <strong style="color: #667eea">🎵 Etude#1 VR Complete</strong><br />
+      <strong>A (Right):</strong> Start/Stop Audio<br />
+      <strong>X (Left):</strong> Show Controls<br />
+      <strong>B/Y:</strong> Change Background<br />
+      <strong>Trigger:</strong> Teleport
+    </div>
+    <button id="vr-button">🥽 Enter VR</button>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { VRButton } from "three/addons/webxr/VRButton.js";
+      import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
+
+      console.log("🎵 Etude#1 VR Complete - Starting...");
+
+      // ===== MUSICAL SCALES =====
+      const bPhrygian = [
+        47, 48, 50, 52, 54, 55, 57, 59, 60, 62, 64, 66, 67, 69, 71, 72, 74, 76,
+        78, 79, 81, 83,
+      ];
+      const chordTones = [35, 38, 40, 43, 47, 50, 52, 55, 59];
+
+      function rand(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+      function randInt(min, max) {
+        return Math.floor(rand(min, max));
+      }
+      function choose(arr) {
+        return arr[randInt(0, arr.length)];
+      }
+
+      // ===== CSOUND ORCHESTRA =====
+      const orc = `
+            sr = 44100
+            ksmps = 32
+            nchnls = 2
+            0dbfs = 1
+            seed 0
+
+            gkMasterFade init 0
+            gkMasterVol init 1
+            gkDryLevel init 1
+            gkKillSwitch init 1
+            gaMasterL init 0
+            gaMasterR init 0
+
+            gaRvbL init 0
+            gaRvbR init 0
+            gaEchoL init 0
+            gaEchoR init 0
+            gaBellShimL init 0
+            gaBellShimR init 0
+            gaPwmRvbL init 0
+            gaPwmRvbR init 0
+            gaFofRvbL init 0
+            gaFofRvbR init 0
+            gaFluteRvbL init 0
+            gaFluteRvbR init 0
+            gaCelloRvbL init 0
+            gaCelloRvbR init 0
+            gaAmbienceL init 0
+            gaAmbienceR init 0
+            gaCricketDelL init 0
+            gaCricketDelR init 0
+            gaShimmerL init 0
+            gaShimmerR init 0
+            gaEchoL init 0
+            gaEchoR init 0
+
+            instr FM
+            iFreq = cpsmidinn(p4)
+            iAmpBase = p5
+            kVol chnget "vol_fm"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iModRatio random 2, 5
+            iModIndex random 3.5, 8.0
+            kEnv expsegr 0.001, 0.01, 1, iDur * 0.15, 0.3, iDur * 0.25, 0.08, 0.05, 0.001
+            kAmpLfo lfo 0.08, random:i(0.2, 0.5)
+            kAmpMod = 0.92 + kAmpLfo
+            aModEnv expsegr 0.001, 0.005, 1, iDur * 0.1, 0.2, iDur * 0.15, 0.05, 0.03, 0.001
+            aMod poscil iModIndex * aModEnv * iFreq, iFreq * iModRatio
+            aCar poscil kAmp * kEnv * kAmpMod, iFreq + aMod
+            aFilt tone aCar, 12000
+            iPanCenter random 0.3, 0.7
+            kPanLfo lfo 0.15, random:i(0.05, 0.12)
+            kPan = iPanCenter + kPanLfo
+            chnset kPan, "pan_fm"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_fm"
+            aL, aR pan2 aFilt, kPan
+            aLDelay vdelay aL, 0.5, 5
+            aRDelay vdelay aR, 0.7, 5
+            aLWide = aL + aRDelay * 0.2
+            aRWide = aR + aLDelay * 0.2
+            aLWide limit aLWide, -0.98, 0.98
+            aRWide limit aRWide, -0.98, 0.98
+            gaRvbL = gaRvbL + aLWide * 0.3
+            gaRvbR = gaRvbR + aRWide * 0.3
+            outs aLWide * 0.4 * gkMasterFade * gkDryLevel, aRWide * 0.4 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Drone
+            iFreq1 = cpsmidinn(p4)
+            iFreq2 = cpsmidinn(p5)
+            iFreq3 = cpsmidinn(p6)
+            iAmpBase = p7
+            kVol chnget "vol_drone"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iModRatio random 1, 2
+            iModIndex random 0.3, 1.2
+            kEnv linsegr 0, iDur * 0.4, 1, iDur * 0.3, 0.95, iDur * 0.2, 0.8, iDur * 0.1, 0
+            kAmpLfo lfo 0.25, random:i(0.03, 0.08)
+            kAmpMod = 0.75 + kAmpLfo
+            kLfo lfo 0.15, random:i(0.05, 0.15), 0
+            aModEnv1 linseg 1, iDur * 0.5, 0.6, iDur * 0.5, 0.4
+            aMod1 poscil (iModIndex + kLfo) * aModEnv1 * iFreq1, iFreq1 * iModRatio
+            aCar1 poscil kAmp * kEnv * kAmpMod * 0.35, iFreq1 + aMod1
+            aModEnv2 linseg 0.8, iDur * 0.4, 1, iDur * 0.6, 0.5
+            aMod2 poscil (iModIndex + kLfo * 0.8) * aModEnv2 * iFreq2, iFreq2 * (iModRatio * 1.1)
+            aCar2 poscil kAmp * kEnv * kAmpMod * 0.3, iFreq2 + aMod2
+            aModEnv3 linseg 0.9, iDur * 0.6, 0.7, iDur * 0.4, 0.6
+            aMod3 poscil (iModIndex + kLfo * 1.2) * aModEnv3 * iFreq3, iFreq3 * (iModRatio * 0.9)
+            aCar3 poscil kAmp * kEnv * kAmpMod * 0.28, iFreq3 + aMod3
+            aMix = aCar1 + aCar2 + aCar3
+            kPanLfo lfo 0.2, random:i(0.04, 0.1)
+            kPan = 0.5 + kPanLfo
+            chnset kPan, "pan_drone"
+            kRms rms aMix
+            chnset kRms * 10, "rms_drone"
+            aL, aR pan2 aMix, kPan
+            aLDelay vdelay aL, 0.8, 8
+            aRDelay vdelay aR, 1.1, 8
+            aLWide = aL + aRDelay * 0.25
+            aRWide = aR + aLDelay * 0.25
+            aLWide limit aLWide, -0.98, 0.98
+            aRWide limit aRWide, -0.98, 0.98
+            gaRvbL = gaRvbL + aLWide * 0.6
+            gaRvbR = gaRvbR + aRWide * 0.6
+            outs aLWide * 0.25 * gkMasterFade * gkDryLevel, aRWide * 0.25 * gkMasterFade * gkDryLevel
+            endin
+
+            instr NoiseSwell
+            iAmpBase = p4
+            kVol chnget "vol_noise"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linseg 0, iDur * 0.55, 1, iDur * 0.1, 0.9, iDur * 0.35, 0
+            aNoise pinkish 1
+            kCf lfo 80, random:i(0.03, 0.08)
+            kCf = kCf + 150
+            aFilt lpf18 aNoise, kCf, 0.3, 0.5
+            aFilt = aFilt * kAmp * kEnv
+            iPanStart random 0.2, 0.8
+            iPanEnd random 0.2, 0.8
+            kPan linseg iPanStart, iDur, iPanEnd
+            chnset kPan, "pan_noise"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_noise"
+            aL, aR pan2 aFilt, kPan
+            aL = aL * 2.0
+            aR = aR * 2.0
+            gaRvbL = gaRvbL + aL * 0.5
+            gaRvbR = gaRvbR + aR * 0.5
+            outs aL * 2.0 * gkMasterFade * gkDryLevel, aR * 2.0 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Rumble
+            iAmpBase = p4
+            kVol chnget "vol_rumble"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linseg 0, iDur * 0.4, 1, iDur * 0.2, 0.9, iDur * 0.4, 0
+            kLfo1 lfo random:i(15, 35), random:i(0.1, 0.25)
+            kLfo2 lfo random:i(20, 45), random:i(0.08, 0.2)
+            kLfo3 lfo random:i(10, 30), random:i(0.12, 0.3)
+            kLfo4 lfo random:i(25, 50), random:i(0.15, 0.35)
+            aOsc1 poscil kAmp * kEnv * 0.3, 35 + kLfo1
+            aOsc2 poscil kAmp * kEnv * 0.3, 42 + kLfo2
+            aOsc3 poscil kAmp * kEnv * 0.25, 28 + kLfo3
+            aOsc4 poscil kAmp * kEnv * 0.15, 55 + kLfo4
+            aMix = aOsc1 + aOsc2 + aOsc3 + aOsc4
+            aMix butterlp aMix, 120
+            aMix = aMix * 1.5
+            aMix tanh aMix
+            iPanStart random 0.2, 0.8
+            iPanEnd random 0.2, 0.8
+            kPan linseg iPanStart, iDur, iPanEnd
+            chnset kPan, "pan_rumble"
+            kRms rms aMix
+            chnset kRms * 10, "rms_rumble"
+            aL, aR pan2 aMix, kPan
+            gaRvbL = gaRvbL + aL * 0.6
+            gaRvbR = gaRvbR + aR * 0.6
+            outs aL * 1.5 * gkMasterFade * gkDryLevel, aR * 1.5 * gkMasterFade * gkDryLevel
+            endin
+
+            instr BellChord
+            iNote1 = p4
+            iNote2 = p5
+            iNote3 = p6
+            iAmpBase = p7
+            kVol chnget "vol_bellchord"
+            kAmp = iAmpBase * kVol * 0.5
+            iDur = p3
+            iFreq1 = cpsmidinn(iNote1)
+            iFreq2 = cpsmidinn(iNote2)
+            iFreq3 = cpsmidinn(iNote3)
+            kEnv linsegr 0, 0.02, 1, iDur - 0.05, 0.95, 0.03, 0
+            iModRat1 random 3, 5
+            iModRat2 random 3.5, 5.5
+            iModRat3 random 3.2, 5.2
+            iModIdx random 0.5, 1.5
+            kModEnv expseg 1, 0.05, 0.3, iDur - 0.05, 0.1
+            aMod1 poscil iModIdx * kModEnv * iFreq1, iFreq1 * iModRat1
+            aBell1 poscil kAmp * kEnv * 0.25, iFreq1 + aMod1
+            aMod2 poscil iModIdx * kModEnv * iFreq2, iFreq2 * iModRat2
+            aBell2 poscil kAmp * kEnv * 0.25, iFreq2 + aMod2
+            aMod3 poscil iModIdx * kModEnv * iFreq3, iFreq3 * iModRat3
+            aBell3 poscil kAmp * kEnv * 0.2, iFreq3 + aMod3
+            aMix = aBell1 + aBell2 + aBell3
+            aFilt tone aMix, 8000
+            kPanLfo lfo 0.45, random:i(0.2, 0.5)
+            kPan = 0.5 + kPanLfo
+            chnset kPan, "pan_bellchord"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_bellchord"
+            aL, aR pan2 aFilt, kPan
+            aL = aL * 1.5
+            aR = aR * 1.5
+            gaBellShimL = gaBellShimL + aL * 0.5
+            gaBellShimR = gaBellShimR + aR * 0.5
+            outs aL * 0.2 * gkMasterFade * gkDryLevel, aR * 0.2 * gkMasterFade * gkDryLevel
+            endin
+
+            instr PwmChord
+            iFreq1 = cpsmidinn(p4)
+            iFreq2 = cpsmidinn(p5)
+            iFreq3 = cpsmidinn(p6)
+            iFreq4 = cpsmidinn(p7)
+            iAmpBase = p8
+            kVol chnget "vol_pwm"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linsegr 0, iDur * 0.35, 1, iDur * 0.3, 0.95, iDur * 0.25, 0.7, iDur * 0.1, 0
+            kAmpLfo lfo 0.3, random:i(0.04, 0.09)
+            kAmpMod = 0.7 + kAmpLfo
+            kPw lfo 0.25, random:i(0.3, 0.7)
+            kPw = kPw + 0.5
+            aPw1 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq1, 2, kPw
+            aPw2 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq1 * 1.002, 2, kPw
+            aPw3 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq2, 2, kPw
+            aPw4 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq2 * 0.998, 2, kPw
+            aPw5 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq3, 2, kPw
+            aPw6 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq3 * 1.001, 2, kPw
+            aPw7 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq4, 2, kPw
+            aPw8 vco2 kAmp * kEnv * kAmpMod * 0.25, iFreq4 * 0.999, 2, kPw
+            aMix = aPw1 + aPw2 + aPw3 + aPw4 + aPw5 + aPw6 + aPw7 + aPw8
+            aFilt moogladder aMix, 1200, 0.2
+            kPanLfo lfo 0.15, random:i(0.05, 0.12)
+            kPan = 0.5 + kPanLfo
+            chnset kPan, "pan_pwm"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_pwm"
+            aL, aR pan2 aFilt, kPan
+            gaPwmRvbL = gaPwmRvbL + aL * 0.6
+            gaPwmRvbR = gaPwmRvbR + aR * 0.6
+            outs aL * 0.55 * gkMasterFade * gkDryLevel, aR * 0.55 * gkMasterFade * gkDryLevel
+            endin
+
+
+            instr Flute
+            iFreq = cpsmidinn(p4)
+            iAmpBase = p5
+            kVol chnget "vol_flute"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linsegr 0, 0.05, 1, iDur - 0.1, 0.9, 0.05, 0
+            kAmpLfo lfo 0.2, random:i(0.1, 0.2)
+            kAmpMod = 0.8 + kAmpLfo
+            iVibRate random 4.5, 6.5
+            iVibDepth random 0.008, 0.015
+            kVib lfo iVibDepth, iVibRate
+            aNoise rand 0.1
+            kNoiseEnv expseg 1, 0.08, 0.01, iDur - 0.08, 0.01
+            aBreath = aNoise * kNoiseEnv * kAmp * kAmpMod * 0.3
+            aBreath butterlp aBreath, iFreq * 3
+            aFlute1 poscil kAmp * kEnv * kAmpMod * 0.4, iFreq * (1 + kVib)
+            aFlute2 poscil kAmp * kEnv * kAmpMod * 0.35, iFreq * 1.003 * (1 + kVib * 0.9)
+            aFlute3 poscil kAmp * kEnv * kAmpMod * 0.3, iFreq * 0.997 * (1 + kVib * 1.1)
+            aMix = aFlute1 + aFlute2 + aFlute3 + aBreath
+            aFilt tone aMix, 4000
+            iPanCenter random 0.3, 0.7
+            kPanLfo lfo 0.2, random:i(0.08, 0.15)
+            kPan = iPanCenter + kPanLfo
+            chnset kPan, "pan_flute"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_flute"
+            aL, aR pan2 aFilt, kPan
+            gaFluteRvbL = gaFluteRvbL + aL * 0.7
+            gaFluteRvbR = gaFluteRvbR + aR * 0.7
+            outs aL * 0.3 * gkMasterFade * gkDryLevel, aR * 0.3 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Cello
+            iFreq = cpsmidinn(p4) * 0.5
+            iAmpBase = p5
+            kVol chnget "vol_cello"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linsegr 0, 1.5, 1, iDur - 2.5, 0.98, 1, 0
+            iVibRate random 4, 5.5
+            iVibDepth random 0.004, 0.007
+            kVib lfo iVibDepth, iVibRate
+            kPwmLfo lfo 0.15, random:i(0.08, 0.15)
+            kPwm = 0.5 + kPwmLfo
+            aSaw1 vco2 kAmp * kEnv * 0.18, iFreq * (1 + kVib), 0
+            aSaw2 vco2 kAmp * kEnv * 0.18, iFreq * 1.007 * (1 + kVib * 0.98), 0
+            aSaw3 vco2 kAmp * kEnv * 0.18, iFreq * 0.993 * (1 + kVib * 1.02), 0
+            aSaw4 vco2 kAmp * kEnv * 0.17, iFreq * 1.012 * (1 + kVib), 0
+            aSaw5 vco2 kAmp * kEnv * 0.17, iFreq * 0.988 * (1 + kVib * 0.97), 0
+            aPw1 vco2 kAmp * kEnv * 0.12, iFreq * 1.003 * (1 + kVib), 2, kPwm
+            aPw2 vco2 kAmp * kEnv * 0.12, iFreq * 0.997 * (1 + kVib * 1.01), 2, kPwm
+            aMix = aSaw1 + aSaw2 + aSaw3 + aSaw4 + aSaw5 + aPw1 + aPw2
+            aFilt moogladder aMix, 600 + kEnv * 800, 0.3
+            aFilt butterlp aFilt, 1200
+            aFilt tone aFilt, 1800
+            iPan random 0.45, 0.55
+            chnset iPan, "pan_cello"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_cello"
+            aL, aR pan2 aFilt, iPan
+            gaCelloRvbL = gaCelloRvbL + aL * 1.1
+            gaCelloRvbR = gaCelloRvbR + aR * 1.1
+            outs aL * 0.55 * gkMasterFade * gkDryLevel, aR * 0.55 * gkMasterFade * gkDryLevel
+            endin
+
+            instr LowThunder
+            iAmpBase = p4
+            kVol chnget "vol_thunder"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv expseg 1, 0.1, 0.8, 0.3, 0.6, iDur - 0.4, 0.001
+            aPink pinkish 1
+            kSubCf expseg 80, 0.2, 30, iDur - 0.2, 12
+            aSub butterlp aPink, kSubCf
+            aSub = aSub * 4
+            kMidCf expseg 180, 0.25, 70, iDur - 0.25, 25
+            aMid butterlp aPink, kMidCf
+            aMid = aMid * 1.2
+            aMix = (aSub * 5 + aMid * 2) * kEnv * kAmp
+            aMix tanh aMix * 1.3
+            aMix limit aMix, -0.85, 0.85
+            iPanStart random 0.2, 0.8
+            iPanEnd random 0.2, 0.8
+            kPan linseg iPanStart, iDur, iPanEnd
+            chnset kPan, "pan_thunder"
+            kRms rms aMix
+            chnset kRms * 10, "rms_thunder"
+            aL, aR pan2 aMix, kPan
+            aL = aL * 0.6
+            aR = aR * 0.6
+            gaRvbL = gaRvbL + aL * 0.4
+            gaRvbR = gaRvbR + aR * 0.4
+            outs aL * 0.35 * gkMasterFade * gkDryLevel, aR * 0.35 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Cricket
+            iAmpBase = p4
+            kVol chnget "vol_cricket"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iFreq random 4500, 8500
+            iFadeIn random 0.02, 0.08
+            iFadeOut random 0.02, 0.08
+            kEnv linseg 0, iFadeIn, 1, iDur - iFadeIn - iFadeOut, 1, iFadeOut, 0
+            kChirp lfo 1, random:i(30, 60), 0
+            kChirp = (kChirp + 1) * 0.5
+            kFreqMod lfo random:i(200, 600), random:i(8, 15)
+            aNoise rand 0.65
+            aChirp butterbp aNoise, iFreq + kFreqMod, iFreq * 0.25
+            aChirp = aChirp * kChirp * kEnv * kAmp
+            aChirp butterhp aChirp, 3500
+            aChirp tone aChirp, 9000
+            iPanStart random 0, 1
+            iPanEnd random 0, 1
+            iPanMid random 0, 1
+            kPanLfo1 lfo 0.4, random:i(0.3, 0.8)
+            kPanLfo2 lfo 0.3, random:i(0.5, 1.2), 0.25
+            kPan linseg iPanStart, iDur * 0.33, iPanMid, iDur * 0.33, iPanEnd, iDur * 0.34, iPanStart
+            kPan = kPan + kPanLfo1 + kPanLfo2
+            kPan limit kPan, 0, 1
+            chnset kPan, "pan_cricket"
+            kRms rms aChirp
+            chnset kRms * 10, "rms_cricket"
+            aL, aR pan2 aChirp, kPan
+            gaCricketDelL = gaCricketDelL + aL * 0.95
+            gaCricketDelR = gaCricketDelR + aR * 0.95
+            gaAmbienceL = gaAmbienceL + aL * 0.7
+            gaAmbienceR = gaAmbienceR + aR * 0.7
+            outs aL * 1.8 * gkMasterFade * gkDryLevel, aR * 1.8 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Bird
+            iAmpBase = p4
+            kVol chnget "vol_bird"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iStartFreq random 1000, 4000
+            iEndFreq random 800, 4500
+            kEnv expseg 0.001, 0.01, 1, iDur - 0.01, 0.01
+            kFreq expseg iStartFreq, iDur * 0.3, iEndFreq, iDur * 0.7, iEndFreq * 0.8
+            iModRatio random 2, 4
+            iModIndex random 1, 3
+            aMod poscil iModIndex * kFreq, kFreq * iModRatio
+            aBird poscil kAmp * kEnv, kFreq + aMod
+            aNoise rand 0.15
+            aNoise butterbp aNoise, kFreq, kFreq * 0.5
+            aBird = aBird + aNoise * kEnv
+            aBird tone aBird, 7000
+            iPanStart random 0, 1
+            iPanEnd random 0, 1
+            kPan linseg iPanStart, iDur, iPanEnd
+            chnset kPan, "pan_bird"
+            kRms rms aBird
+            chnset kRms * 10, "rms_bird"
+            aL, aR pan2 aBird, kPan
+            gaAmbienceL = gaAmbienceL + aL * 0.7
+            gaAmbienceR = gaAmbienceR + aR * 0.7
+            outs aL * 0.35 * gkMasterFade * gkDryLevel, aR * 0.35 * gkMasterFade * gkDryLevel
+            endin
+
+            instr WaterDrip
+            iAmpBase = p4
+            kVol chnget "vol_water"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iDropFreq random 1200, 2800
+            iModFreq random 3000, 5000
+            kEnv expseg 1, 0.003, 0.6, 0.02, 0.3, iDur - 0.023, 0.001
+            aDrip poscil kAmp * kEnv, iDropFreq + (iModFreq * kEnv * 0.3)
+            aDrip butterbp aDrip, iDropFreq, iDropFreq * 1.8
+            aClick rand kAmp * kEnv * 0.2
+            aClick butterhp aClick, 4000
+            aDrop = aDrip + aClick
+            aDrop tone aDrop, 6000
+            iPan random 0.2, 0.8
+            kPan = iPan
+            chnset kPan, "pan_water"
+            kRms rms aDrop
+            chnset kRms * 10, "rms_water"
+            aL, aR pan2 aDrop, kPan
+            gaShimmerL = gaShimmerL + aL * 0.85
+            gaShimmerR = gaShimmerR + aR * 0.85
+            outs aL * 0.12 * gkMasterFade * gkDryLevel, aR * 0.12 * gkMasterFade * gkDryLevel
+            endin
+
+            instr CracklingFire
+            iAmpBase = p4
+            kVol chnget "vol_fire"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kCrackleRate1 lfo 12, random:i(0.8, 3.2), 2
+            kCrackleRate1 = abs(kCrackleRate1) + 5
+            kCrackleRate2 lfo 18, random:i(1.5, 4.5), 0
+            kCrackleRate2 = abs(kCrackleRate2) + 8
+            aCrackle1 dust kAmp * 0.8, kCrackleRate1 * 95
+            aCrackle1 butterbp aCrackle1, random:i(400, 1800), random:i(600, 1200)
+            aCrackle2 dust kAmp * 0.6, kCrackleRate2 * 120
+            aCrackle2 butterbp aCrackle2, random:i(800, 2500), random:i(400, 900)
+            aCrackle3 dust kAmp * 0.4, random:i(60, 150)
+            aCrackle3 butterbp aCrackle3, random:i(200, 600), random:i(300, 700)
+            aCrackle = aCrackle1 + aCrackle2 + aCrackle3
+            kWindRate lfo 1.5, random:i(0.2, 0.6)
+            kWindRate = abs(kWindRate) + 0.5
+            aWind pinker
+            aWind = aWind * kAmp * kWindRate * 0.4
+            aWind butterbp aWind, random:i(200, 800), random:i(300, 600)
+            aWind tone aWind, 1200
+            aAir noise kAmp * 0.25, 0.5
+            aAir butterbp aAir, random:i(500, 2000), random:i(800, 1500)
+            kAirMod lfo 0.6, random:i(0.3, 0.9)
+            aAir = aAir * (kAirMod + 0.4)
+            aRumble rand kAmp * 0.35
+            aRumble tone aRumble, 120
+            aRumble butterlp aRumble, 180
+            aFire = aCrackle + aWind + aAir + aRumble
+            kEnv linsegr 0, iDur * 0.15, 1, iDur * 0.7, 0.9, 0.2, 0
+            aFire = aFire * kEnv
+            kPanLfo1 lfo 0.35, random:i(0.15, 0.45)
+            kPanLfo2 lfo 0.25, random:i(0.25, 0.65), 0.25
+            iPanCenter random 0.35, 0.65
+            kPan = iPanCenter + kPanLfo1 + kPanLfo2 * 0.5
+            kPan limit kPan, 0.05, 0.95
+            chnset kPan, "pan_fire"
+            kRms rms aFire
+            chnset kRms * 10, "rms_fire"
+            aL, aR pan2 aFire, kPan
+            gaEchoL = gaEchoL + aL * 0.6
+            gaEchoR = gaEchoR + aR * 0.6
+            outs aL * 0.65 * gkMasterFade * gkDryLevel, aR * 0.65 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Marimba
+            iFreq = cpsmidinn(p4)
+            iAmpBase = p5
+            kVol chnget "vol_marimba"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iModRatio random 1.5, 2.8
+            iModIndex random 1.2, 2.8
+            kEnv expsegr 0.001, 0.003, 1, iDur * 0.08, 0.25, iDur * 0.12, 0.08, 0.04, 0.001
+            aModEnv expsegr 0.001, 0.002, 1, iDur * 0.05, 0.15, iDur * 0.08, 0.03, 0.02, 0.001
+            aMod poscil iModIndex * aModEnv * iFreq, iFreq * iModRatio
+            aCar poscil kAmp * kEnv, iFreq + aMod
+            aFilt tone aCar, 3500
+            aFilt butterlp aFilt, 2800
+            iPan random 0.25, 0.75
+            chnset iPan, "pan_marimba"
+            kRms rms aFilt
+            chnset kRms * 10, "rms_marimba"
+            aL, aR pan2 aFilt, iPan
+            aLDelay vdelay aL, 0.4, 4
+            aRDelay vdelay aR, 0.6, 4
+            aLWide = aL + aRDelay * 0.18
+            aRWide = aR + aLDelay * 0.18
+            aLWide limit aLWide, -0.98, 0.98
+            aRWide limit aRWide, -0.98, 0.98
+            gaRvbL = gaRvbL + aLWide * 0.25
+            gaRvbR = gaRvbR + aRWide * 0.25
+            outs aLWide * 0.35 * gkMasterFade * gkDryLevel, aRWide * 0.35 * gkMasterFade * gkDryLevel
+            endin
+
+            instr GlobalFadeIn
+            gkMasterFade init 0
+            gkReverbFade init 0
+            if gkMasterFade < 1 then
+            gkMasterFade = gkMasterFade + (1.0 / (8.0 * kr))
+            gkMasterFade limit gkMasterFade, 0, 1
+            endif
+            if timeinsts() > 1 && gkReverbFade < 1 then
+            gkReverbFade = gkReverbFade + (1.0 / (6.0 * kr))
+            gkReverbFade limit gkReverbFade, 0, 1
+            endif
+            gkMasterVol chnget "vol_effect"
+            gkDryLevel chnget "vol_dry"
+            endin
+
+            instr MasterVolumeInit
+            chnset 1, "vol_effect"
+            chnset 1, "vol_dry"
+            chnset 1, "kill_switch"
+            endin
+
+            instr KillSwitch
+            gkKillSwitch chnget "kill_switch"
+            if gkKillSwitch < 0.01 then
+            turnoff2 "FM", 2, 0
+            turnoff2 "Drone", 2, 0
+            turnoff2 "NoiseSwell", 2, 0
+            turnoff2 "Rumble", 2, 0
+            turnoff2 "BellChord", 2, 0
+            turnoff2 "PwmChord", 2, 0
+            turnoff2 "LowThunder", 2, 0
+            turnoff2 "Flute", 2, 0
+            turnoff2 "Cello", 2, 0
+            turnoff2 "Cricket", 2, 0
+            turnoff2 "Bird", 2, 0
+            turnoff2 "WaterDrip", 2, 0
+            turnoff2 "CracklingFire", 2, 0
+            turnoff2 "Marimba", 2, 0
+            endif
+            endin
+
+            instr CricketMultitapDelay
+            aInL = gaCricketDelL
+            aInR = gaCricketDelR
+            aPingL delay aInR, 0.11
+            aPongR delay aInL, 0.13
+            aPingL2 delay aPongR, 0.19
+            aPongR2 delay aPingL, 0.21
+            aPingL3 delay aPongR2, 0.31
+            aPongR3 delay aPingL2, 0.37
+            aPingL4 delay aPongR3, 0.47
+            aPongR4 delay aPingL3, 0.53
+            aMixL = aInL + aPingL * 0.7 + aPingL2 * 0.5 + aPingL3 * 0.35 + aPingL4 * 0.2
+            aMixR = aInR + aPongR * 0.7 + aPongR2 * 0.5 + aPongR3 * 0.35 + aPongR4 * 0.2
+            aMixL butterlp aMixL, 7000
+            aMixR butterlp aMixR, 7000
+            aRvbL, aRvbR reverbsc aMixL, aMixR, 0.94, 10000
+            aRvbL tone aRvbL, 6000
+            aRvbR tone aRvbR, 6000
+            kMaster chnget "vol_effect"
+            outs (aMixL * 0.3 + aRvbL * 0.8) * kMaster * gkReverbFade, (aMixR * 0.3 + aRvbR * 0.8) * kMaster * gkReverbFade
+            clear gaCricketDelL, gaCricketDelR
+            endin
+
+            instr Echo
+            aInL = gaEchoL
+            aInR = gaEchoR
+            aDelL init 0
+            aDelR init 0
+            aDelL delay aInL + aDelL*0.55, 0.47
+            aDelR delay aInR + aDelR*0.6, 0.53
+            aDelL tone aDelL, 3000
+            aDelR tone aDelR, 3000
+            kMaster chnget "vol_effect"
+            outs aDelL * 0.2 * kMaster, aDelR * 0.2 * kMaster
+            clear gaEchoL, gaEchoR
+            endin
+
+            instr BellShimmer
+            aInL = gaBellShimL
+            aInR = gaBellShimR
+            aShiftL1 poscil aInL * 0.4, 1.03, -1
+            aShiftL2 poscil aInL * 0.35, 0.97, -1
+            aShiftL3 poscil aInL * 0.3, 1.07, -1
+            aShiftR1 poscil aInR * 0.4, 1.04, -1
+            aShiftR2 poscil aInR * 0.35, 0.96, -1
+            aShiftR3 poscil aInR * 0.3, 1.06, -1
+            aShimL = aInL + aShiftL1 + aShiftL2 + aShiftL3
+            aShimR = aInR + aShiftR1 + aShiftR2 + aShiftR3
+            aDelL init 0
+            aDelR init 0
+            aDelL delay aShimL + aDelR * 0.3, 0.37
+            aDelR delay aShimR + aDelL * 0.3, 0.43
+            aDelL tone aDelL, 6000
+            aDelR tone aDelR, 6000
+            aMixL = aShimL + aDelL * 0.4
+            aMixR = aShimR + aDelR * 0.4
+            aRvbL, aRvbR reverbsc aMixL, aMixR, 0.92, 9000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.7 * kMaster * gkReverbFade, aRvbR * 0.7 * kMaster * gkReverbFade
+            clear gaBellShimL, gaBellShimR
+            endin
+
+            instr PwmFreeverb
+            aRvbL, aRvbR freeverb gaPwmRvbL, gaPwmRvbR, 0.88, 0.5
+            kMaster chnget "vol_effect"
+            outs aRvbL * kMaster * gkReverbFade, aRvbR * kMaster * gkReverbFade
+            clear gaPwmRvbL, gaPwmRvbR
+            endin
+
+            instr FluteNetwork
+            aInL = gaFluteRvbL
+            aInR = gaFluteRvbR
+            aChL1 vdelay aInL, 12 + 3 * lfo:k(1, 0.5), 30
+            aChR1 vdelay aInR, 14 + 3 * lfo:k(1, 0.45), 30
+            aChL2 vdelay aInL, 18 + 2.5 * lfo:k(1, 0.6), 30
+            aChR2 vdelay aInR, 16 + 2.5 * lfo:k(1, 0.55), 30
+            aChL = (aInL + aChL1 * 0.35 + aChL2 * 0.25) * 0.65
+            aChR = (aInR + aChR1 * 0.35 + aChR2 * 0.25) * 0.65
+            aDelL init 0
+            aDelR init 0
+            aDelL delay aChL + aDelR * 0.25, 0.31
+            aDelR delay aChR + aDelL * 0.25, 0.37
+            aDelL tone aDelL, 3500
+            aDelR tone aDelR, 3500
+            aMixL = aChL + aDelL * 0.3
+            aMixR = aChR + aDelR * 0.3
+            aRvbL, aRvbR reverbsc aMixL, aMixR, 0.88, 7000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.65 * kMaster * gkReverbFade, aRvbR * 0.65 * kMaster * gkReverbFade
+            clear gaFluteRvbL, gaFluteRvbR
+            endin
+
+            instr CelloNetwork
+            aInL = gaCelloRvbL
+            aInR = gaCelloRvbR
+            aChL1 vdelay aInL, 18 + 6 * lfo:k(1, 0.35), 50
+            aChR1 vdelay aInR, 20 + 6 * lfo:k(1, 0.32), 50
+            aChL2 vdelay aInL, 26 + 5 * lfo:k(1, 0.48), 50
+            aChR2 vdelay aInR, 24 + 5 * lfo:k(1, 0.44), 50
+            aChL3 vdelay aInL, 32 + 4 * lfo:k(1, 0.52), 50
+            aChR3 vdelay aInR, 30 + 4 * lfo:k(1, 0.5), 50
+            aChL = (aInL + aChL1 * 0.4 + aChL2 * 0.3 + aChL3 * 0.2) * 0.6
+            aChR = (aInR + aChR1 * 0.4 + aChR2 * 0.3 + aChR3 * 0.2) * 0.6
+            aDelL init 0
+            aDelR init 0
+            aDelL delay aChL + aDelR * 0.35, 0.41
+            aDelR delay aChR + aDelL * 0.35, 0.47
+            aDelL tone aDelL, 2800
+            aDelR tone aDelR, 2800
+            aMixL = aChL + aDelL * 0.4
+            aMixR = aChR + aDelR * 0.4
+            aRvbL, aRvbR reverbsc aMixL, aMixR, 0.9, 5000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.7 * kMaster * gkReverbFade, aRvbR * 0.7 * kMaster * gkReverbFade
+            clear gaCelloRvbL, gaCelloRvbR
+            endin
+
+            instr AmbienceReverb
+            aInL = gaAmbienceL
+            aInR = gaAmbienceR
+            aRvbL, aRvbR reverbsc aInL, aInR, 0.93, 10000
+            aRvbL tone aRvbL, 6000
+            aRvbR tone aRvbR, 6000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.5 * kMaster * gkReverbFade, aRvbR * 0.5 * kMaster * gkReverbFade
+            clear gaAmbienceL, gaAmbienceR
+            endin
+
+            instr Reverb
+            aL, aR reverbsc gaRvbL, gaRvbR, 0.85, 8000
+            kMaster chnget "vol_effect"
+            outs aL * kMaster * gkReverbFade, aR * kMaster * gkReverbFade
+            clear gaRvbL, gaRvbR
+            endin
+
+            instr WaterShimmerReverb
+            aL = gaShimmerL
+            aR = gaShimmerR
+            aPitchL, aPitchR reverbsc aL, aR, 0.92, 12000
+            aPitchL = aPitchL * 0.4
+            aPitchR = aPitchR * 0.4
+            aDelL vdelay3 aPitchL, 23, 500
+            aDelR vdelay3 aPitchR, 29, 500
+            aShimL = aPitchL + aDelL * 0.6
+            aShimR = aPitchR + aDelR * 0.6
+            kMaster chnget "vol_effect"
+            outs aShimL * kMaster * gkReverbFade, aShimR * kMaster * gkReverbFade
+            clear gaShimmerL, gaShimmerR
+            endin
+
+            instr FireEcho
+            aL = gaEchoL
+            aR = gaEchoR
+            aDelL vdelay3 aL, 180, 600
+            aDelR vdelay3 aR, 240, 600
+            aFeedL = aL + aDelR * 0.4
+            aFeedR = aR + aDelL * 0.4
+            kMaster chnget "vol_effect"
+            outs aFeedL * 0.5 * kMaster * gkReverbFade, aFeedR * 0.5 * kMaster * gkReverbFade
+            clear gaEchoL, gaEchoR
+            endin
+            `;
+
+      // ===== STATE =====
+      let csound = null,
+        isPlaying = false,
+        composerTimers = [];
+      let camera, scene, renderer, clock;
+      let controller1, controller2, grip1, grip2;
+      let particleSystem, skybox;
+      let teleportMarker,
+        teleportLine,
+        teleportTarget = null;
+      let controlPanel = null;
+      let controlsVisible = false;
+      let statusText = null;
+      let statusTimeout = null;
+
+      // Particle controls
+      let particleCount = 1100;
+      let particleSpeed = 1.0;
+      let cohesionStrength = 0.003;
+      let separationStrength = 0.02;
+      let alignmentStrength = 0.015;
+
+      const layers = [
+        "fm",
+        "drone",
+        "noise",
+        "marimba",
+        "rumble",
+        "bellchord",
+        "pwmchord",
+        "thunder",
+        "flute",
+        "cello",
+        "cricket",
+        "bird",
+        "water",
+        "fire",
+      ];
+      const layerColors = {
+        fm: { h: 0.05, s: 0.8, l: 0.65 },
+        drone: { h: 0.15, s: 0.75, l: 0.6 },
+        noise: { h: 0.55, s: 0.6, l: 0.7 },
+        marimba: { h: 0.12, s: 0.65, l: 0.55 },
+        rumble: { h: 0.95, s: 0.5, l: 0.4 },
+        bellchord: { h: 0.65, s: 0.7, l: 0.65 },
+        pwmchord: { h: 0.85, s: 0.6, l: 0.6 },
+        thunder: { h: 0.75, s: 0.5, l: 0.5 },
+        flute: { h: 0.45, s: 0.75, l: 0.7 },
+        cello: { h: 0.25, s: 0.65, l: 0.55 },
+        cricket: { h: 0.35, s: 0.7, l: 0.6 },
+        bird: { h: 0.5, s: 0.8, l: 0.65 },
+        water: { h: 0.58, s: 0.75, l: 0.7 },
+        fire: { h: 0.08, s: 0.85, l: 0.6 },
+      };
+      let audioLayers = {},
+        layerVolumes = {};
+      layers.forEach((l) => {
+        audioLayers[l] = 0;
+        layerVolumes[l] = 0.5;
+      });
+
+      // Background images
+      const bgImages = {
+        nebula:
+          "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?w=2048&q=80",
+        galaxy:
+          "https://images.unsplash.com/photo-1543722530-d2c3201371e7?w=2048&q=80",
+        sunset:
+          "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=2048&q=80",
+        clouds:
+          "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=2048&q=80",
+        aurora:
+          "https://images.unsplash.com/photo-1579033461380-adb47c3eb938?w=2048&q=80",
+        space:
+          "https://images.unsplash.com/photo-1465101162946-4377e57745c3?w=2048&q=80",
+      };
+      const bgNames = Object.keys(bgImages);
+      let currentBgIndex = 0;
+
+      function init() {
+        clock = new THREE.Clock();
+        scene = new THREE.Scene();
+        // Don't set scene.background - let skybox show through
+        scene.fog = new THREE.Fog(0x000510, 10, 50);
+
+        camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          100,
+        );
+        camera.position.set(0, 1.6, 3);
+
+        renderer = new THREE.WebGLRenderer({ antialias: false });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true;
+        renderer.xr.setFramebufferScaleFactor(1.0);
+        document.body.appendChild(renderer.domElement);
+
+        // VR Button
+        const vrButton = VRButton.createButton(renderer, {
+          optionalFeatures: ["hand-tracking", "local-floor"],
+        });
+        document.body.appendChild(vrButton);
+        vrButton.style.display = "none";
+        document.getElementById("vr-button").onclick = () => vrButton.click();
+
+        // Lighting
+        scene.add(new THREE.AmbientLight(0x404060, 0.5));
+        const light1 = new THREE.PointLight(0x6699ff, 1.5, 20);
+        light1.position.set(5, 5, 5);
+        scene.add(light1);
+        const light2 = new THREE.PointLight(0xff66aa, 1.2, 20);
+        light2.position.set(-5, 3, -5);
+        scene.add(light2);
+
+        // Floor
+        const floor = new THREE.Mesh(
+          new THREE.CircleGeometry(10, 32),
+          new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.8 }),
+        );
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+        scene.add(new THREE.GridHelper(20, 20, 0x667eea, 0x334477));
+
+        // Skybox with image
+        createSkybox();
+
+        // Particles (FLOCKING)
+        createParticles();
+
+        // Teleport system
+        setupTeleport();
+
+        // Controllers
+        setupControllers();
+
+        // Status display
+        createStatusDisplay();
+
+        // VR events
+        renderer.xr.addEventListener("sessionstart", () => {
+          document.getElementById("info").style.display = "none";
+          document.getElementById("vr-button").style.display = "none";
+          updateStatusText("VR Session Started!");
+          console.log("✅ VR session started");
+        });
+
+        window.addEventListener("resize", () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        console.log("✅ Init complete");
+      }
+
+      function createSkybox() {
+        const geo = new THREE.SphereGeometry(50, 32, 32);
+        const mat = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
+        skybox = new THREE.Mesh(geo, mat);
+        scene.add(skybox);
+        loadBackground(bgNames[currentBgIndex]);
+      }
+
+      function loadBackground(bgName) {
+        console.log("🖼️ Loading background:", bgName);
+        const loader = new THREE.TextureLoader();
+        loader.setCrossOrigin("anonymous");
+        loader.load(
+          bgImages[bgName],
+          (texture) => {
+            skybox.material.map = texture;
+            skybox.material.map.colorSpace = THREE.SRGBColorSpace;
+            skybox.material.needsUpdate = true;
+            console.log("✅ Background loaded:", bgName);
+            updateStatusText('BG: ' + bgName);
+          },
+          (progress) => {
+            if (progress.total > 0) {
+              const pct = Math.round((progress.loaded / progress.total) * 100);
+              console.log("📥 Loading:", pct + "%");
+            }
+          },
+          (err) => {
+            console.error("❌ Background load failed:", err);
+            updateStatusText('BG Load Failed!');
+          },
+        );
+      }
+
+      function nextBackground() {
+        currentBgIndex = (currentBgIndex + 1) % bgNames.length;
+        const bgName = bgNames[currentBgIndex];
+        updateStatusText('Loading: ' + bgName);
+        loadBackground(bgName);
+      }
+
+      function createParticles() {
+        const count = 1100; // Full count like desktop
+        const particlesPerLayer = Math.floor(count / layers.length);
+        const geo = new THREE.SphereGeometry(0.05, 8, 8);
+        const mat = new THREE.MeshPhongMaterial({
+          emissive: 0x667eea,
+          emissiveIntensity: 0.5,
+          transparent: true,
+          opacity: 0.85,
+        });
+
+        particleSystem = {
+          mesh: new THREE.InstancedMesh(geo, mat, count),
+          particles: [],
+        };
+
+        const dummy = new THREE.Object3D();
+        const color = new THREE.Color();
+
+        for (let i = 0; i < count; i++) {
+          const layerIndex = Math.floor(i / particlesPerLayer);
+          const layer = layers[Math.min(layerIndex, layers.length - 1)];
+          const layerAngleOffset = (layerIndex / layers.length) * Math.PI * 2;
+
+          const angle = Math.random() * Math.PI * 0.5 + layerAngleOffset;
+          const radius = Math.random() * 8 + 4;
+          const height = (Math.random() - 0.5) * 6;
+
+          const position = new THREE.Vector3(
+            Math.cos(angle) * radius,
+            height + 1.6,
+            Math.sin(angle) * radius,
+          );
+
+          const velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.01,
+            (Math.random() - 0.5) * 0.008,
+            (Math.random() - 0.5) * 0.01,
+          );
+
+          const lc = layerColors[layer];
+          color.setHSL(lc.h + (Math.random() - 0.5) * 0.08, lc.s, lc.l);
+
+          particleSystem.particles.push({
+            position,
+            velocity,
+            layer,
+            layerIndex,
+            baseColor: color.clone(),
+          });
+
+          dummy.position.copy(position);
+          dummy.updateMatrix();
+          particleSystem.mesh.setMatrixAt(i, dummy.matrix);
+          particleSystem.mesh.setColorAt(i, color);
+        }
+
+        particleSystem.mesh.castShadow = true;
+        scene.add(particleSystem.mesh);
+        console.log("✅ Created", count, "flocking particles");
+      }
+
+      function setupTeleport() {
+        const markerGeo = new THREE.RingGeometry(0.25, 0.3, 32);
+        const markerMat = new THREE.MeshBasicMaterial({
+          color: 0x667eea,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.8,
+        });
+        teleportMarker = new THREE.Mesh(markerGeo, markerMat);
+        teleportMarker.rotation.x = -Math.PI / 2;
+        teleportMarker.visible = false;
+        scene.add(teleportMarker);
+
+        const points = [];
+        for (let i = 0; i <= 30; i++) points.push(new THREE.Vector3(0, 0, 0));
+        const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+        const lineMat = new THREE.LineBasicMaterial({
+          color: 0x667eea,
+          transparent: true,
+          opacity: 0.6,
+        });
+        teleportLine = new THREE.Line(lineGeo, lineMat);
+        teleportLine.visible = false;
+        scene.add(teleportLine);
+      }
+
+      function createStatusDisplay() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 512;
+        canvas.height = 128;
+        const ctx = canvas.getContext("2d");
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+          side: THREE.DoubleSide,
+        });
+        const geometry = new THREE.PlaneGeometry(2, 0.5);
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(0, 2.5, -3);
+        scene.add(mesh);
+
+        statusText = { canvas, ctx, texture, mesh, message: "" };
+        updateStatusText("Etude#1 VR - Ready");
+        console.log("✅ Status display created");
+      }
+
+      function updateStatusText(message) {
+        if (!statusText) return;
+        statusText.message = message;
+        const { canvas, ctx, texture } = statusText;
+
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#667eea";
+        ctx.font = "bold 36px Courier New";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(message, canvas.width / 2, canvas.height / 2);
+
+        texture.needsUpdate = true;
+        console.log("📝 Status:", message);
+
+        // Auto-hide after 3 seconds
+        if (statusTimeout) clearTimeout(statusTimeout);
+        statusText.mesh.visible = true;
+        statusTimeout = setTimeout(() => {
+          if (statusText) statusText.mesh.visible = false;
+        }, 3000);
+      }
+
+      function createControlPanel() {
+        const panel = new THREE.Group();
+
+        // Background panel - wider to fit text
+        const panelBg = new THREE.Mesh(
+          new THREE.PlaneGeometry(2.0, 2.5),
+          new THREE.MeshBasicMaterial({
+            color: 0x0a0a1e,
+            transparent: true,
+            opacity: 0.92,
+            side: THREE.DoubleSide
+          })
+        );
+        panel.add(panelBg);
+
+        // Create canvas for text display
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 1280;
+        const ctx = canvas.getContext('2d');
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const textMat = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+          side: THREE.DoubleSide
+        });
+        const textMesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(1.95, 2.45),
+          textMat
+        );
+        textMesh.position.set(0, 0, 0.01);
+        panel.add(textMesh);
+
+        panel.canvas = canvas;
+        panel.ctx = ctx;
+        panel.texture = texture;
+
+        panel.position.set(-1.5, 1.6, -2.5);
+        panel.rotation.y = Math.PI / 8;
+        panel.visible = false;
+        scene.add(panel);
+
+        console.log(
+          "✅ Control panel created with",
+          layers.length,
+          "layer indicators",
+        );
+        return panel;
+      }
+
+      function toggleControls() {
+        if (!controlPanel) {
+          controlPanel = createControlPanel();
+        }
+        controlsVisible = !controlsVisible;
+        controlPanel.visible = controlsVisible;
+        console.log(
+          controlsVisible ? "🎛️ Controls shown" : "🎛️ Controls hidden",
+        );
+      }
+
+      function updateControlPanel() {
+        if (!controlPanel || !controlPanel.visible) return;
+
+        const { canvas, ctx, texture } = controlPanel;
+
+        // Clear canvas
+        ctx.fillStyle = '#00000000';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Title
+        ctx.fillStyle = '#667eea';
+        ctx.font = 'bold 48px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('ETUDE#1 CONTROLS', canvas.width / 2, 60);
+
+        let y = 120;
+        const lineHeight = 35;
+
+        // Particle Controls
+        ctx.fillStyle = '#8899ff';
+        ctx.font = 'bold 36px Courier New';
+        ctx.textAlign = 'left';
+        ctx.fillText('PARTICLE SETTINGS', 50, y);
+        y += lineHeight + 10;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '28px Courier New';
+        ctx.fillText(`Count: ${particleCount}`, 50, y);
+        y += lineHeight;
+        ctx.fillText(`Speed: ${particleSpeed.toFixed(2)}x`, 50, y);
+        y += lineHeight;
+        ctx.fillText(`Cohesion: ${(cohesionStrength * 1000).toFixed(1)}`, 50, y);
+        y += lineHeight;
+        ctx.fillText(`Separation: ${(separationStrength * 100).toFixed(1)}`, 50, y);
+        y += lineHeight;
+        ctx.fillText(`Alignment: ${(alignmentStrength * 1000).toFixed(1)}`, 50, y);
+        y += lineHeight + 20;
+
+        // Layer Volumes
+        ctx.fillStyle = '#8899ff';
+        ctx.font = 'bold 36px Courier New';
+        ctx.fillText('LAYER VOLUMES', 50, y);
+        y += lineHeight + 10;
+
+        ctx.font = '24px Courier New';
+        layers.forEach((layer, i) => {
+          const volume = layerVolumes[layer] || 0;
+          const level = audioLayers[layer] || 0;
+          const lc = layerColors[layer];
+
+          // Color bar
+          const barWidth = 200;
+          const barHeight = 20;
+          const barX = 50;
+          const barY = y - 18;
+
+          ctx.fillStyle = '#333344';
+          ctx.fillRect(barX, barY, barWidth, barHeight);
+
+          const color = `hsl(${lc.h * 360}, ${lc.s * 100}%, ${lc.l * 100}%)`;
+          ctx.fillStyle = color;
+          const activeWidth = barWidth * volume * (0.3 + level * 0.7);
+          ctx.fillRect(barX, barY, activeWidth, barHeight);
+
+          // Label
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(layer.toUpperCase(), barX + barWidth + 20, y);
+          ctx.fillText(`${Math.round(volume * 100)}%`, barX + barWidth + 200, y);
+
+          y += lineHeight;
+
+          // Two columns
+          if (i === 6) {
+            y = 580;
+          }
+        });
+
+        // Instructions
+        y = canvas.height - 60;
+        ctx.fillStyle = '#667eea';
+        ctx.font = '24px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('Use THUMBSTICKS to adjust values', canvas.width / 2, y);
+
+        texture.needsUpdate = true;
+      }
+
+      function updateTeleportArc(controller) {
+        const controllerPos = new THREE.Vector3();
+        const controllerDir = new THREE.Vector3();
+        controller.getWorldPosition(controllerPos);
+        controller.getWorldDirection(controllerDir);
+
+        const points = [];
+        const velocity = 5,
+          gravity = 9.8,
+          segments = 30;
+        let hitGround = false,
+          hitPoint = null;
+
+        for (let i = 0; i <= segments; i++) {
+          const t = i / segments;
+          const time = t * 1.5;
+          const point = new THREE.Vector3(
+            controllerPos.x + controllerDir.x * velocity * time,
+            controllerPos.y +
+              controllerDir.y * velocity * time -
+              0.5 * gravity * time * time,
+            controllerPos.z + controllerDir.z * velocity * time,
+          );
+          if (point.y <= 0.01 && !hitGround) {
+            hitGround = true;
+            hitPoint = new THREE.Vector3(point.x, 0.01, point.z);
+          }
+          points.push(point);
+          if (hitGround) break;
+        }
+
+        teleportLine.geometry.setFromPoints(points);
+
+        if (hitPoint && hitPoint.length() < 10) {
+          teleportMarker.position.copy(hitPoint);
+          teleportMarker.visible = true;
+          return hitPoint;
+        } else {
+          teleportMarker.visible = false;
+          return null;
+        }
+      }
+
+      function setupControllers() {
+        const factory = new XRControllerModelFactory();
+
+        controller1 = renderer.xr.getController(0);
+        controller1.addEventListener("selectstart", onSelectStart);
+        controller1.addEventListener("selectend", onSelectEnd);
+        scene.add(controller1);
+
+        grip1 = renderer.xr.getControllerGrip(0);
+        grip1.add(factory.createControllerModel(grip1));
+        scene.add(grip1);
+
+        controller2 = renderer.xr.getController(1);
+        controller2.addEventListener("selectstart", onSelectStart);
+        controller2.addEventListener("selectend", onSelectEnd);
+        scene.add(controller2);
+
+        grip2 = renderer.xr.getControllerGrip(1);
+        grip2.add(factory.createControllerModel(grip2));
+        scene.add(grip2);
+
+        // Add rays
+        const rayGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(0, 0, -1),
+        ]);
+        const rayMat = new THREE.LineBasicMaterial({ color: 0x667eea });
+        const ray1 = new THREE.Line(rayGeo, rayMat);
+        ray1.scale.z = 5;
+        controller1.add(ray1);
+        const ray2 = new THREE.Line(rayGeo, rayMat.clone());
+        ray2.scale.z = 5;
+        controller2.add(ray2);
+
+        // Quest controller button monitoring
+        renderer.xr.addEventListener("sessionstart", () => {
+          const session = renderer.xr.getSession();
+          const buttonStates = {
+            button4_left: false, // X button
+            button4_right: false, // A button
+            button5_left: false, // Y button
+            button5_right: false, // B button
+          };
+
+          session.addEventListener("inputsourceschange", (event) => {
+            event.added.forEach((source) => {
+              if (source.gamepad) {
+                const isLeft = source.handedness === "left";
+                const isRight = source.handedness === "right";
+
+                const checkButtons = () => {
+                  if (!renderer.xr.isPresenting) return;
+                  const gp = source.gamepad;
+                  if (!gp) return;
+
+                  // Thumbstick controls (when control panel visible)
+                  if (controlsVisible && gp.axes && gp.axes.length >= 4) {
+                    const threshold = 0.3;
+
+                    // Right thumbstick Y-axis (axes[3]) - Particle Count
+                    if (Math.abs(gp.axes[3]) > threshold) {
+                      particleCount = Math.max(10, Math.min(3000, particleCount - gp.axes[3] * 20));
+                      particleCount = Math.round(particleCount / 10) * 10;
+                    }
+
+                    // Right thumbstick X-axis (axes[2]) - Particle Speed
+                    if (Math.abs(gp.axes[2]) > threshold) {
+                      particleSpeed = Math.max(0.1, Math.min(3.0, particleSpeed + gp.axes[2] * 0.02));
+                    }
+
+                    // Left thumbstick Y-axis (axes[1]) - Cohesion
+                    if (Math.abs(gp.axes[1]) > threshold) {
+                      cohesionStrength = Math.max(0.0001, Math.min(0.01, cohesionStrength - gp.axes[1] * 0.0001));
+                    }
+
+                    // Left thumbstick X-axis (axes[0]) - Separation
+                    if (Math.abs(gp.axes[0]) > threshold) {
+                      separationStrength = Math.max(0.001, Math.min(0.1, separationStrength + gp.axes[0] * 0.0005));
+                    }
+                  }
+
+                  // A button (right controller, index 4) - Toggle Audio
+                  if (isRight && gp.buttons[4]) {
+                    if (gp.buttons[4].pressed && !buttonStates.button4_right) {
+                      buttonStates.button4_right = true;
+                      updateStatusText('A Button: Toggle Audio');
+                      toggleAudio();
+                      console.log('🎵 A button: Toggle audio');
+                    } else if (!gp.buttons[4].pressed) {
+                      buttonStates.button4_right = false;
+                    }
+                  }
+
+                  // X button (left controller, index 4) - Toggle Controls
+                  if (isLeft && gp.buttons[4]) {
+                    if (gp.buttons[4].pressed && !buttonStates.button4_left) {
+                      buttonStates.button4_left = true;
+                      updateStatusText('X Button: Toggle Controls');
+                      toggleControls();
+                      console.log('🎛️ X button: Toggle controls');
+                    } else if (!gp.buttons[4].pressed) {
+                      buttonStates.button4_left = false;
+                    }
+                  }
+
+                  // B/Y buttons (index 5 both controllers) - Next Background
+                  if (gp.buttons[5]) {
+                    const stateKey = isLeft ? 'button5_left' : 'button5_right';
+                    if (gp.buttons[5].pressed && !buttonStates[stateKey]) {
+                      buttonStates[stateKey] = true;
+                      updateStatusText('B/Y: Next Background');
+                      nextBackground();
+                      console.log('🖼️ B/Y button: Next background');
+                    } else if (!gp.buttons[5].pressed) {
+                      buttonStates[stateKey] = false;
+                    }
+                  }
+                  }
+
+                  // X button (left controller, index 4) - Toggle Controls
+                  if (isLeft && gp.buttons[4]) {
+                    if (gp.buttons[4].pressed && !buttonStates.button4_left) {
+                      buttonStates.button4_left = true;
+                      toggleControls();
+                      console.log("🎛️ X button: Toggle controls");
+                    } else if (!gp.buttons[4].pressed) {
+                      buttonStates.button4_left = false;
+                    }
+                  }
+
+                  // B/Y buttons (index 5 both controllers) - Next Background
+                  if (gp.buttons[5]) {
+                    const stateKey = isLeft ? "button5_left" : "button5_right";
+                    if (gp.buttons[5].pressed && !buttonStates[stateKey]) {
+                      buttonStates[stateKey] = true;
+                      nextBackground();
+                      console.log("🖼️ B/Y button: Next background");
+                    } else if (!gp.buttons[5].pressed) {
+                      buttonStates[stateKey] = false;
+                    }
+                  }
+
+                  requestAnimationFrame(checkButtons);
+                };
+                checkButtons();
+              }
+            });
+          });
+        });
+
+        console.log("✅ Controllers setup");
+      }
+
+      function onSelectStart(event) {
+        teleportLine.visible = true;
+        teleportTarget = updateTeleportArc(event.target);
+      }
+
+      function onSelectEnd(event) {
+        if (teleportTarget) {
+          const offset = renderer.xr.getCamera().position.clone();
+          offset.y = 0;
+          const newPos = teleportTarget.clone().sub(offset);
+          camera.position.add(newPos);
+          console.log("✈️ Teleported to", teleportTarget);
+        }
+        teleportLine.visible = false;
+        teleportMarker.visible = false;
+        teleportTarget = null;
+      }
+
+      async function toggleAudio() {
+        if (!isPlaying) {
+          updateStatusText('Starting Audio...');
+          await startAudio();
+        } else {
+          updateStatusText('Stopping Audio');
+          stopAudio();
+        }
+      }
+
+      async function startAudio() {
+        try {
+          console.log("🎵 Starting audio...");
+          updateStatusText('Loading Csound...');
+          if (!csound) {
+            const { Csound } = await import(
+              "https://unpkg.com/@csound/browser@6.18.7/dist/csound.js"
+            );
+            csound = await Csound();
+            await csound.setOption("-odac");
+            await csound.compileOrc(orc);
+            await csound.start();
+            layers.forEach((l) =>
+              csound.setControlChannel(`vol_${l}`, layerVolumes[l]),
+            );
+            csound.setControlChannel("vol_dry", 1);
+            csound.setControlChannel("vol_effect", 1);
+            console.log("✅ Csound loaded");
+            updateStatusText('Csound Ready!');
+          }
+
+          isPlaying = true;
+          updateStatusText('Audio Playing!');
+          csound.inputMessage('i "GlobalFadeIn" 0 3600');
+          csound.inputMessage('i "Reverb" 0 3600');
+          csound.inputMessage('i "Echo" 0 3600');
+          csound.inputMessage('i "BellShimmer" 0 3600');
+          csound.inputMessage('i "PwmFreeverb" 0 3600');
+          csound.inputMessage('i "FluteNetwork" 0 3600');
+          csound.inputMessage('i "CelloNetwork" 0 3600');
+          csound.inputMessage('i "Ambience" 0 3600');
+          csound.inputMessage('i "CricketDelay" 0 3600');
+          csound.inputMessage('i "Shimmer" 0 3600');
+
+          composeFM();
+          composeDrone();
+          composeNoise();
+          composeRumble();
+          composeBellChord();
+          composePwmChord();
+          composeThunder();
+          composeFlute();
+          composeCello();
+          composeCricket();
+          composeBird();
+          composeWater();
+          composeFire();
+          composeMarimba();
+
+          // Read audio levels
+          setInterval(async () => {
+            if (csound && isPlaying) {
+              for (const l of layers) {
+                try {
+                  const rms = await csound.getControlChannel(`rms_${l}`);
+                  audioLayers[l] = Math.min(Math.max(rms || 0, 0), 1) * 0.8;
+                } catch (e) {}
+              }
+            }
+          }, 50);
+
+          console.log("✅ Audio started");
+        } catch (e) {
+          console.error("❌ Audio error:", e);
+        }
+      }
+
+      function stopAudio() {
+        isPlaying = false;
+        composerTimers.forEach((t) => clearTimeout(t));
+        composerTimers = [];
+        console.log("⏹️ Audio stopped");
+      }
+
+      function composeFM() {
+        if (!isPlaying) return;
+        const note = choose(bPhrygian) + 24;
+        const dur = rand(0.2, 1.2);
+        const amp = rand(0.04, 0.1);
+        csound.inputMessage(`i "FM" 0 ${dur} ${note} ${amp}`);
+        const timer = setTimeout(composeFM, rand(400, 3000));
+        composerTimers.push(timer);
+      }
+
+      function composeDrone() {
+        if (!isPlaying) return;
+        if (Math.random() < 0.35) {
+          const timer = setTimeout(composeDrone, rand(8000, 16000));
+          composerTimers.push(timer);
+          return;
+        }
+        const n1 = choose(chordTones),
+          n2 = choose(chordTones),
+          n3 = choose(chordTones);
+        const dur = rand(10, 20);
+        const amp = rand(0.06, 0.12);
+        csound.inputMessage(`i "Drone" 0 ${dur} ${n1} ${n2} ${n3} ${amp}`);
+        const timer = setTimeout(composeDrone, rand(8000, 18000));
+        composerTimers.push(timer);
+      }
+
+      function composeNoise() {
+        if (!isPlaying) return;
+        const dur = rand(24, 40);
+        const amp = rand(0.1, 0.16);
+        csound.inputMessage(`i "NoiseSwell" 0 ${dur} ${amp}`);
+        const timer = setTimeout(composeNoise, rand(10000, 20000));
+        composerTimers.push(timer);
+      }
+
+      function composeMarimba() {
+        if (!isPlaying) return;
+        const note = choose(bPhrygian) - 24;
+        const dur = rand(0.15, 0.4);
+        const amp = rand(0.025, 0.055);
+        csound.inputMessage(`i "Marimba" 0 ${dur} ${note} ${amp}`);
+        const timer = setTimeout(composeMarimba, rand(2000, 8000));
+        composerTimers.push(timer);
+      }
+
+      function composeRumble() {
+        if (!isPlaying) return;
+        const dur = rand(8, 18);
+        const amp = rand(0.2, 0.35);
+        csound.inputMessage(`i "Rumble" 0 ${dur} ${amp}`);
+        addNoteToCSD("Rumble", dur, amp);
+        const timer = setTimeout(composeRumble, rand(12000, 30000));
+        composerTimers.push(timer);
+      }
+
+      function composeBellChord() {
+        if (!isPlaying) return;
+        if (Math.random() < 0.5) {
+          const timer = setTimeout(composeBellChord, rand(4000, 8000));
+          composerTimers.push(timer);
+          return;
+        }
+        const baseNote = choose(bPhrygian);
+        const intervals = choose([
+          [0, 7, 12],
+          [0, 5, 12],
+          [0, 7, 14],
+        ]);
+        const note1 = baseNote + intervals[0];
+        const note2 = baseNote + intervals[1];
+        const note3 = baseNote + intervals[2];
+        const dur = rand(4, 8);
+        const amp = rand(0.08, 0.14);
+        csound.inputMessage(
+          `i "BellChord" 0 ${dur} ${note1} ${note2} ${note3} ${amp}`,
+        );
+        addNoteToCSD("BellChord", dur, note1, note2, note3, amp);
+        const timer = setTimeout(composeBellChord, rand(6000, 12000));
+        composerTimers.push(timer);
+      }
+
+      function composePwmChord() {
+        if (!isPlaying) return;
+        const note1 = choose(chordTones);
+        const note2 = choose(chordTones);
+        const note3 = choose(chordTones);
+        const note4 = choose(chordTones);
+        const dur = rand(10, 18);
+        const amp = rand(0.14, 0.2);
+        csound.inputMessage(
+          `i "PwmChord" 0 ${dur} ${note1} ${note2} ${note3} ${note4} ${amp}`,
+        );
+        addNoteToCSD("PwmChord", dur, note1, note2, note3, note4, amp);
+        const timer = setTimeout(composePwmChord, rand(8000, 15000));
+        composerTimers.push(timer);
+      }
+
+      function composeThunder() {
+        if (!isPlaying) return;
+        const dur = rand(5, 12);
+        const amp = rand(0.25, 0.45);
+        csound.inputMessage(`i "LowThunder" 0 ${dur} ${amp}`);
+        addNoteToCSD("LowThunder", dur, amp);
+        const timer = setTimeout(composeThunder, rand(25000, 70000));
+        composerTimers.push(timer);
+      }
+
+      function composeFlute() {
+        if (!isPlaying) return;
+
+        // Play ONE note immediately
+        const note = bPhrygian[randInt(5, 12)];
+        const dur = rand(0.4, 1.8);
+        const amp = rand(0.1, 0.18);
+        csound.inputMessage(`i "Flute" 0 ${dur} ${note} ${amp}`);
+        addNoteToCSD("Flute", dur, note, amp);
+
+        // Decide if we should play more notes in this phrase
+        const shouldContinue = Math.random() < 0.7 && randInt(0, 5) > 0;
+
+        if (shouldContinue) {
+          // Schedule next note in phrase
+          const nextNoteDelay = (dur + rand(0.3, 0.9)) * 1000;
+          const timer = setTimeout(composeFlute, nextNoteDelay);
+          composerTimers.push(timer);
+        } else {
+          // End of phrase - wait longer before next phrase
+          const timer = setTimeout(composeFlute, rand(8000, 18000));
+          composerTimers.push(timer);
+        }
+      }
+
+      function composeCello() {
+        if (!isPlaying) return;
+        if (Math.random() < 0.7) {
+          const timer = setTimeout(composeCello, rand(20000, 40000));
+          composerTimers.push(timer);
+          return;
+        }
+
+        // Play ONE note immediately
+        const note = bPhrygian[randInt(0, 4)];
+        const dur = rand(3, 6);
+        const amp = rand(0.3, 0.45);
+        csound.inputMessage(`i "Cello" 0 ${dur} ${note} ${amp}`);
+        addNoteToCSD("Cello", dur, note, amp);
+
+        // Decide if we should play another note in this phrase
+        const shouldContinue = Math.random() < 0.5;
+
+        if (shouldContinue) {
+          // Schedule next note in phrase
+          const nextNoteDelay = (dur + rand(2.5, 5.0)) * 1000;
+          const timer = setTimeout(composeCello, nextNoteDelay);
+          composerTimers.push(timer);
+        } else {
+          // End of phrase - wait longer before next phrase
+          const timer = setTimeout(composeCello, rand(30000, 60000));
+          composerTimers.push(timer);
+        }
+      }
+
+      function composeCricket() {
+        if (!isPlaying) return;
+        if (Math.random() < 0.4) {
+          const timer = setTimeout(composeCricket, rand(4000, 9000));
+          composerTimers.push(timer);
+          return;
+        }
+        const dur = rand(0.5, 2.5);
+        const amp = rand(0.35, 0.55);
+        csound.inputMessage(`i "Cricket" 0 ${dur} ${amp}`);
+        addNoteToCSD("Cricket", dur, amp);
+        const timer = setTimeout(composeCricket, rand(3500, 8000));
+        composerTimers.push(timer);
+      }
+
+      function composeBird() {
+        if (!isPlaying) return;
+
+        // Play ONE chirp immediately
+        const dur = rand(0.2, 0.8);
+        const amp = rand(0.18, 0.32);
+        csound.inputMessage(`i "Bird" 0 ${dur} ${amp}`);
+        addNoteToCSD("Bird", dur, amp);
+
+        // Decide if we should chirp again (up to 4 chirps total)
+        const shouldContinue = Math.random() < 0.6 && randInt(0, 4) > 0;
+
+        if (shouldContinue) {
+          // Schedule next chirp very soon (rapid chirping)
+          const nextChirpDelay = (dur + rand(0.1, 0.3)) * 1000;
+          const timer = setTimeout(composeBird, nextChirpDelay);
+          composerTimers.push(timer);
+        } else {
+          // End of chirp sequence - wait longer before next sequence
+          const timer = setTimeout(composeBird, rand(8000, 20000));
+          composerTimers.push(timer);
+        }
+      }
+
+      function composeWater() {
+        if (!isPlaying) return;
+
+        // Play ONE drip immediately
+        const dur = rand(0.08, 0.18);
+        const amp = rand(0.2, 0.4);
+        csound.inputMessage(`i "WaterDrip" 0 ${dur} ${amp}`);
+        addNoteToCSD("WaterDrip", dur, amp);
+
+        // Decide if we should drip again (up to 3 drips total)
+        const shouldContinue = Math.random() < 0.5 && randInt(0, 3) > 0;
+
+        if (shouldContinue) {
+          // Schedule next drip very soon (rapid dripping)
+          const nextDripDelay = rand(200, 600);
+          const timer = setTimeout(composeWater, nextDripDelay);
+          composerTimers.push(timer);
+        } else {
+          // End of drip sequence - wait longer before next sequence
+          const timer = setTimeout(composeWater, rand(4000, 12000));
+          composerTimers.push(timer);
+        }
+      }
+
+      function composeFire() {
+        if (!isPlaying) return;
+        const dur = rand(6, 18);
+        const amp = rand(0.25, 0.45);
+        csound.inputMessage(`i "CracklingFire" 0 ${dur} ${amp}`);
+        addNoteToCSD("CracklingFire", dur, amp);
+        const timer = setTimeout(composeFire, rand(1500, 6000));
+        composerTimers.push(timer);
+      }
+
+      function animateParticles(deltaTime) {
+        const dummy = new THREE.Object3D();
+        const color = new THREE.Color();
+        const time = clock.getElapsedTime();
+        const particlesPerLayer = Math.floor(
+          particleSystem.particles.length / layers.length,
+        );
+
+        for (let i = 0; i < particleSystem.particles.length; i++) {
+          const p = particleSystem.particles[i];
+          const audioLevel = audioLayers[p.layer] * layerVolumes[p.layer] || 0;
+
+          // FLOCKING BEHAVIOR
+          const force = new THREE.Vector3(0, 0, 0);
+          let neighborCount = 0;
+          const center = new THREE.Vector3(0, 0, 0);
+          const avgVel = new THREE.Vector3(0, 0, 0);
+
+          const startIdx = p.layerIndex * particlesPerLayer;
+          const endIdx = Math.min(
+            startIdx + particlesPerLayer,
+            particleSystem.particles.length,
+          );
+
+          for (let j = startIdx; j < endIdx; j++) {
+            if (i === j) continue;
+            const neighbor = particleSystem.particles[j];
+            const diff = neighbor.position.clone().sub(p.position);
+            const distSq = diff.lengthSq();
+            const interactionRange = 1.5 + audioLevel * 1.5;
+
+            if (distSq < interactionRange * interactionRange && distSq > 0.01) {
+              const dist = Math.sqrt(distSq);
+              center.add(neighbor.position);
+              avgVel.add(neighbor.velocity);
+              if (dist < 0.3) {
+                const repel = ((0.3 - dist) / 0.3) * separationStrength;
+                force.sub(diff.normalize().multiplyScalar(repel));
+              }
+              neighborCount++;
+            }
+          }
+
+          if (neighborCount > 0) {
+            center.divideScalar(neighborCount).sub(p.position);
+            force.add(center.multiplyScalar(cohesionStrength));
+            avgVel.divideScalar(neighborCount).sub(p.velocity);
+            force.add(avgVel.multiplyScalar(alignmentStrength));
+          }
+
+          // Home position
+          const layerAngleOffset = (p.layerIndex / layers.length) * Math.PI * 2;
+          const homePos = new THREE.Vector3(
+            Math.cos(layerAngleOffset + time * 0.1) * 6,
+            Math.sin(time * 0.3 + p.layerIndex) * 2 + 1.6,
+            Math.sin(layerAngleOffset + time * 0.1) * 6,
+          );
+          const toHome = homePos
+            .sub(p.position)
+            .multiplyScalar(0.001 + audioLevel * 0.002);
+          force.add(toHome);
+
+          p.velocity.add(force);
+          p.velocity.multiplyScalar(0.96);
+
+          const maxSpeed = 0.05 * particleSpeed * (1 + audioLevel * 2);
+          if (p.velocity.length() > maxSpeed) {
+            p.velocity.normalize().multiplyScalar(maxSpeed);
+          }
+
+          p.position.add(p.velocity.clone().multiplyScalar(particleSpeed));
+
+          // Boundary
+          const boundaryRadius = 10;
+          const distFromCenter = p.position.length();
+          if (distFromCenter > boundaryRadius) {
+            const pushBack =
+              ((distFromCenter - boundaryRadius) / distFromCenter) * 0.1;
+            p.position.multiplyScalar(1 - pushBack);
+          }
+
+          // Audio-reactive color & scale
+          const brightnessMult = 1.0 + audioLevel * 1.5;
+          const lc = layerColors[p.layer];
+          color.setHSL(lc.h, lc.s, Math.min(lc.l * brightnessMult, 0.95));
+          const scale = 1.0 + audioLevel * 3.0;
+
+          dummy.position.copy(p.position);
+          dummy.scale.setScalar(scale);
+          dummy.updateMatrix();
+
+          particleSystem.mesh.setMatrixAt(i, dummy.matrix);
+          particleSystem.mesh.setColorAt(i, color);
+        }
+
+        particleSystem.mesh.instanceMatrix.needsUpdate = true;
+        particleSystem.mesh.instanceColor.needsUpdate = true;
+      }
+
+      function animate() {
+        renderer.setAnimationLoop(render);
+      }
+
+      function render() {
+        const deltaTime = clock.getDelta();
+
+        if (skybox) skybox.rotation.y += 0.0001;
+
+        animateParticles(deltaTime);
+
+        updateControlPanel();
+
+        if (teleportLine.visible) {
+          if (controller1.visible)
+            teleportTarget = updateTeleportArc(controller1);
+          else if (controller2.visible)
+            teleportTarget = updateTeleportArc(controller2);
+        }
+
+        renderer.render(scene, camera);
+      }
+
+      init();
+      animate();
+      console.log("✅ Etude#1 VR Complete - Ready!");
+    </script>
+  </body>
+</html>

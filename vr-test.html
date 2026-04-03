@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VR Test - Quest 3</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: monospace;
+        background: #000;
+        color: #fff;
+      }
+      #info {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        z-index: 100;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 20px;
+        border-radius: 10px;
+        max-width: 400px;
+      }
+      button {
+        padding: 20px 40px;
+        font-size: 20px;
+        margin: 10px;
+        cursor: pointer;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <h1>🥽 Quest 3 VR Test</h1>
+      <p id="status">Checking WebXR support...</p>
+      <button id="vr-btn" style="display: none">Enter VR</button>
+      <div
+        id="log"
+        style="margin-top: 20px; font-size: 12px; color: #aaa"
+      ></div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { VRButton } from "three/addons/webxr/VRButton.js";
+
+      const log = (msg) => {
+        console.log(msg);
+        document.getElementById("log").innerHTML += msg + "<br>";
+      };
+
+      const status = document.getElementById("status");
+      const vrBtn = document.getElementById("vr-btn");
+
+      log("🔍 Starting VR test...");
+
+      // Check WebXR support
+      if (!navigator.xr) {
+        status.textContent = "❌ WebXR not supported in this browser";
+        log("❌ navigator.xr is undefined");
+        log("💡 Make sure you're using Quest Browser or Chrome");
+      } else {
+        log("✅ navigator.xr found");
+
+        navigator.xr
+          .isSessionSupported("immersive-vr")
+          .then((supported) => {
+            if (supported) {
+              status.textContent = "✅ WebXR VR is supported!";
+              log("✅ immersive-vr session is supported");
+              vrBtn.style.display = "block";
+
+              // Setup Three.js
+              const scene = new THREE.Scene();
+              scene.background = new THREE.Color(0x000510);
+
+              const camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                100,
+              );
+              camera.position.z = 3;
+
+              const renderer = new THREE.WebGLRenderer({ antialias: true });
+              renderer.setSize(window.innerWidth, window.innerHeight);
+              renderer.xr.enabled = true;
+              document.body.appendChild(renderer.domElement);
+
+              // Add a cube
+              const geometry = new THREE.BoxGeometry(1, 1, 1);
+              const material = new THREE.MeshBasicMaterial({ color: 0x667eea });
+              const cube = new THREE.Mesh(geometry, material);
+              scene.add(cube);
+
+              // Add light
+              scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
+              // VR Button
+              const threeVRButton = VRButton.createButton(renderer);
+              document.body.appendChild(threeVRButton);
+              threeVRButton.style.display = "none";
+
+              vrBtn.onclick = () => {
+                log("🥽 VR button clicked");
+                threeVRButton.click();
+              };
+
+              renderer.xr.addEventListener("sessionstart", () => {
+                log("✅ VR session started!");
+                document.getElementById("info").style.display = "none";
+              });
+
+              renderer.xr.addEventListener("sessionend", () => {
+                log("⏹️ VR session ended");
+                document.getElementById("info").style.display = "block";
+              });
+
+              // Animation loop
+              function animate() {
+                cube.rotation.x += 0.01;
+                cube.rotation.y += 0.01;
+                renderer.render(scene, camera);
+              }
+
+              renderer.setAnimationLoop(animate);
+
+              log("✅ Three.js scene ready");
+            } else {
+              status.textContent = "❌ VR not supported";
+              log("❌ immersive-vr not supported");
+            }
+          })
+          .catch((err) => {
+            status.textContent = "❌ Error checking VR support";
+            log("❌ Error: " + err.message);
+          });
+      }
+    </script>
+  </body>
+</html>

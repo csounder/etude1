@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Etude#1 by Dr.C - VR & Desktop Versions</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Courier New", monospace;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 800px;
+        text-align: center;
+      }
+
+      h1 {
+        font-size: 3em;
+        margin-bottom: 0.5em;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .subtitle {
+        font-size: 1.2em;
+        margin-bottom: 2em;
+        opacity: 0.9;
+      }
+
+      .versions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 30px;
+        margin-top: 40px;
+      }
+
+      .version-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 30px;
+        transition:
+          transform 0.3s ease,
+          box-shadow 0.3s ease;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .version-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      }
+
+      .version-card h2 {
+        font-size: 1.8em;
+        margin-bottom: 0.5em;
+      }
+
+      .version-card .icon {
+        font-size: 4em;
+        margin-bottom: 0.3em;
+      }
+
+      .version-card p {
+        margin-bottom: 1.5em;
+        line-height: 1.6;
+      }
+
+      .version-card a {
+        display: inline-block;
+        padding: 12px 30px;
+        background: white;
+        color: #667eea;
+        text-decoration: none;
+        border-radius: 25px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+      }
+
+      .version-card a:hover {
+        background: #667eea;
+        color: white;
+        transform: scale(1.05);
+      }
+
+      .badge {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 5px 15px;
+        border-radius: 15px;
+        font-size: 0.8em;
+        margin-top: 10px;
+      }
+
+      .footer {
+        margin-top: 60px;
+        opacity: 0.7;
+        font-size: 0.9em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎵 Etude#1 by Dr.C</h1>
+      <p class="subtitle">Generative Audio-Visual Composition in B Phrygian</p>
+
+      <div class="versions">
+        <div class="version-card">
+          <div class="icon">🥽🎵✨</div>
+          <h2>Quest 3 VR COMPLETE</h2>
+          <p>
+            <strong>FULLY IMMERSIVE VR!</strong> All 14 Csound instruments, flocking particles, 
+            background images, hand tracking, teleportation. Squeeze to start audio!
+          </p>
+          <div class="badge" style="background: #44aa44;">✅ ALL 14 Instruments</div>
+          <div class="badge">🖼️ Backgrounds</div>
+          <div class="badge">🐦 Flocking (1100)</div>
+          <br /><br />
+          <a href="Etude1-Quest3-COMPLETE.html" style="background: linear-gradient(135deg, #44aa44, #228822); color: white; font-size: 1.15em; padding: 14px 32px;">🥽 Enter VR COMPLETE →</a>
+          <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.8;">
+            <strong>VR Controls:</strong> Squeeze=Audio | Trigger=Teleport | B/Y=Background
+          </p>
+        </div>
+
+        <div class="version-card">
+          <div class="icon">🖥️</div>
+          <h2>Desktop Version</h2>
+          <p>
+            Full-featured desktop experience with interactive controls, all 14 audio
+            layers, and customizable visuals. Works on Quest browser (non-VR).
+          </p>
+          <div class="badge">14 Audio Layers</div>
+          <div class="badge">Volume Sliders</div>
+          <div class="badge">CSD Export</div>
+          <br /><br />
+          <a href="Etude1-V5.html">Launch Desktop →</a>
+        </div>
+      </div>
+
+        <div class="version-card">
+          <div class="icon">🥽</div>
+          <h2>Quest 3 VR (Visual Only)</h2>
+          <p>
+            WebXR experience with particles, hand tracking, and teleportation.
+            No audio - optimized for testing VR controls.
+          </p>
+          <div class="badge">Hand Tracking</div>
+          <div class="badge">90-120Hz</div>
+          <div class="badge">Volume UI</div>
+          <br /><br />
+          <a href="Etude1-Quest3-WebXR.html">Enter VR →</a>
+        </div>
+
+        <div class="version-card">
+          <div class="icon">🖥️</div>
+          <h2>Desktop Version</h2>
+          <p>
+            Full-featured desktop experience with interactive controls, 14 audio
+            layers, and customizable visuals.
+          </p>
+          <div class="badge">14 Audio Layers</div>
+          <div class="badge">Live Controls</div>
+          <div class="badge">CSD Export</div>
+          <br /><br />
+          <a href="Etude1-V5.html">Launch Desktop →</a>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p>Created by Dr. Richard Boulanger using Csound & Three.js</p>
+        <p>
+          GitHub:
+          <a href="https://github.com/csounder/etude1" style="color: white"
+            >csounder/etude1</a
+          >
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

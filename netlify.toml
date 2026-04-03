@@ -1,0 +1,9 @@
+[build]
+  publish = "."
+  command = "echo 'No build required'"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"

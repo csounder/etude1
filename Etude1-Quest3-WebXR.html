@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Etude#1 VR - Quest 3 with Csound</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            background: #000;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 100;
+        }
+        #vr-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.6);
+            z-index: 100;
+        }
+        #vr-button:hover {
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <strong>Etude#1 VR - Quest 3</strong><br>
+        Squeeze: Toggle Menu & Start/Stop Audio<br>
+        Trigger: Teleport
+    </div>
+    <button id="vr-button">Enter VR</button>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { VRButton } from 'three/addons/webxr/VRButton.js';
+        import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+        import { XRHandModelFactory } from 'three/addons/webxr/XRHandModelFactory.js';
+
+        // ===== CSOUND ORCHESTRA =====
+        const orc = `
+            sr = 44100
+            ksmps = 32
+            nchnls = 2
+            0dbfs = 1
+            seed 0
+
+            gkMasterFade init 0
+            gkMasterVol init 1
+            gkDryLevel init 1
+            gkKillSwitch init 1
+            gaMasterL init 0
+            gaMasterR init 0
+
+            gaRvbL init 0
+            gaRvbR init 0
+            gaEchoL init 0
+            gaEchoR init 0
+            gaBellShimL init 0
+            gaBellShimR init 0
+            gaPwmRvbL init 0
+            gaPwmRvbR init 0
+            gaFofRvbL init 0
+            gaFofRvbR init 0
+            gaFluteRvbL init 0
+            gaFluteRvbR init 0
+            gaCelloRvbL init 0
+            gaCelloRvbR init 0
+            gaAmbienceL init 0
+            gaAmbienceR init 0
+            gaCricketDelL init 0
+            gaCricketDelR init 0
+            gaShimmerL init 0
+            gaShimmerR init 0
+
+            instr FM
+            iFreq = cpsmidinn(p4)
+            iAmpBase = p5
+            kVol chnget "vol_fm"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iModRatio random 2, 5
+            iModIndex random 3.5, 8.0
+            kEnv expsegr 0.001, 0.01, 1, iDur * 0.15, 0.3, iDur * 0.25, 0.08, 0.05, 0.001
+            kAmpLfo lfo 0.08, random:i(0.2, 0.5)
+            kAmpMod = 0.92 + kAmpLfo
+            aModEnv expsegr 0.001, 0.005, 1, iDur * 0.1, 0.2, iDur * 0.15, 0.05, 0.03, 0.001
+            aMod poscil iModIndex * aModEnv * iFreq, iFreq * iModRatio
+            aCar poscil kAmp * kEnv * kAmpMod, iFreq + aMod
+            aFilt tone aCar, 12000
+            iPanCenter random 0.3, 0.7
+            kPanLfo lfo 0.15, random:i(0.05, 0.12)
+            kPan = iPanCenter + kPanLfo
+            kRms rms aFilt
+            chnset kRms * 10, "rms_fm"
+            aL, aR pan2 aFilt, kPan
+            aLDelay vdelay aL, 0.5, 5
+            aRDelay vdelay aR, 0.7, 5
+            aLWide = aL + aRDelay * 0.2
+            aRWide = aR + aLDelay * 0.2
+            aLWide limit aLWide, -0.98, 0.98
+            aRWide limit aRWide, -0.98, 0.98
+            gaRvbL = gaRvbL + aLWide * 0.3
+            gaRvbR = gaRvbR + aRWide * 0.3
+            outs aLWide * 0.4 * gkMasterFade * gkDryLevel, aRWide * 0.4 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Drone
+            iFreq1 = cpsmidinn(p4)
+            iFreq2 = cpsmidinn(p5)
+            iFreq3 = cpsmidinn(p6)
+            iAmpBase = p7
+            kVol chnget "vol_drone"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iModRatio random 1, 2
+            iModIndex random 0.3, 1.2
+            kEnv linsegr 0, iDur * 0.4, 1, iDur * 0.3, 0.95, iDur * 0.2, 0.8, iDur * 0.1, 0
+            kAmpLfo lfo 0.25, random:i(0.03, 0.08)
+            kAmpMod = 0.75 + kAmpLfo
+            kLfo lfo 0.15, random:i(0.05, 0.15), 0
+            aModEnv1 linseg 1, iDur * 0.5, 0.6, iDur * 0.5, 0.4
+            aMod1 poscil (iModIndex + kLfo) * aModEnv1 * iFreq1, iFreq1 * iModRatio
+            aCar1 poscil kAmp * kEnv * kAmpMod * 0.35, iFreq1 + aMod1
+            aModEnv2 linseg 0.8, iDur * 0.4, 1, iDur * 0.6, 0.5
+            aMod2 poscil (iModIndex + kLfo * 0.8) * aModEnv2 * iFreq2, iFreq2 * (iModRatio * 1.1)
+            aCar2 poscil kAmp * kEnv * kAmpMod * 0.3, iFreq2 + aMod2
+            aModEnv3 linseg 0.9, iDur * 0.6, 0.7, iDur * 0.4, 0.6
+            aMod3 poscil (iModIndex + kLfo * 1.2) * aModEnv3 * iFreq3, iFreq3 * (iModRatio * 0.9)
+            aCar3 poscil kAmp * kEnv * kAmpMod * 0.28, iFreq3 + aMod3
+            aMix = aCar1 + aCar2 + aCar3
+            kRms rms aMix
+            chnset kRms * 10, "rms_drone"
+            aL, aR pan2 aMix, 0.5
+            gaRvbL = gaRvbL + aL * 0.6
+            gaRvbR = gaRvbR + aR * 0.6
+            outs aL * 0.25 * gkMasterFade * gkDryLevel, aR * 0.25 * gkMasterFade * gkDryLevel
+            endin
+
+            instr NoiseSwell
+            iAmpBase = p4
+            kVol chnget "vol_noise"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linseg 0, iDur * 0.55, 1, iDur * 0.1, 0.9, iDur * 0.35, 0
+            aNoise pinkish 1
+            kCf lfo 80, random:i(0.03, 0.08)
+            kCf = kCf + 150
+            aFilt lpf18 aNoise, kCf, 0.3, 0.5
+            aFilt = aFilt * kAmp * kEnv
+            kRms rms aFilt
+            chnset kRms * 10, "rms_noise"
+            aL, aR pan2 aFilt * 2.0, 0.5
+            gaRvbL = gaRvbL + aL * 0.5
+            gaRvbR = gaRvbR + aR * 0.5
+            outs aL * 2.0 * gkMasterFade * gkDryLevel, aR * 2.0 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Rumble
+            iAmpBase = p4
+            kVol chnget "vol_rumble"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linseg 0, iDur * 0.4, 1, iDur * 0.2, 0.9, iDur * 0.4, 0
+            kLfo1 lfo random:i(15, 35), random:i(0.1, 0.25)
+            aOsc1 poscil kAmp * kEnv * 0.3, 35 + kLfo1
+            aMix butterlp aOsc1, 120
+            aMix = aMix * 1.5
+            aMix tanh aMix
+            kRms rms aMix
+            chnset kRms * 10, "rms_rumble"
+            aL, aR pan2 aMix, 0.5
+            outs aL * 1.5 * gkMasterFade * gkDryLevel, aR * 1.5 * gkMasterFade * gkDryLevel
+            endin
+
+            instr BellChord
+            iNote1 = p4
+            iNote2 = p5
+            iNote3 = p6
+            iAmpBase = p7
+            kVol chnget "vol_bellchord"
+            kAmp = iAmpBase * kVol * 0.5
+            iDur = p3
+            iFreq1 = cpsmidinn(iNote1)
+            iFreq2 = cpsmidinn(iNote2)
+            iFreq3 = cpsmidinn(iNote3)
+            kEnv linsegr 0, 0.02, 1, iDur - 0.05, 0.95, 0.03, 0
+            aBell1 poscil kAmp * kEnv * 0.25, iFreq1
+            aBell2 poscil kAmp * kEnv * 0.25, iFreq2
+            aBell3 poscil kAmp * kEnv * 0.2, iFreq3
+            aMix = aBell1 + aBell2 + aBell3
+            kRms rms aMix
+            chnset kRms * 10, "rms_bellchord"
+            aL, aR pan2 aMix, 0.5
+            gaBellShimL = gaBellShimL + aL * 0.5
+            gaBellShimR = gaBellShimR + aR * 0.5
+            outs aL * 0.2 * gkMasterFade * gkDryLevel, aR * 0.2 * gkMasterFade * gkDryLevel
+            endin
+
+            instr PwmChord
+            iFreq1 = cpsmidinn(p4)
+            iFreq2 = cpsmidinn(p5)
+            iFreq3 = cpsmidinn(p6)
+            iFreq4 = cpsmidinn(p7)
+            iAmpBase = p8
+            kVol chnget "vol_pwm"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linsegr 0, iDur * 0.35, 1, iDur * 0.3, 0.95, iDur * 0.25, 0.7, iDur * 0.1, 0
+            kPw lfo 0.25, random:i(0.3, 0.7)
+            kPw = kPw + 0.5
+            aPw1 vco2 kAmp * kEnv * 0.25, iFreq1, 2, kPw
+            aPw2 vco2 kAmp * kEnv * 0.25, iFreq2, 2, kPw
+            aMix = aPw1 + aPw2
+            aFilt moogladder aMix, 1200, 0.2
+            kRms rms aFilt
+            chnset kRms * 10, "rms_pwm"
+            aL, aR pan2 aFilt, 0.5
+            gaPwmRvbL = gaPwmRvbL + aL * 0.6
+            gaPwmRvbR = gaPwmRvbR + aR * 0.6
+            outs aL * 0.55 * gkMasterFade * gkDryLevel, aR * 0.55 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Flute
+            iFreq = cpsmidinn(p4)
+            iAmpBase = p5
+            kVol chnget "vol_flute"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linsegr 0, 0.05, 1, iDur - 0.1, 0.9, 0.05, 0
+            aFlute poscil kAmp * kEnv * 0.4, iFreq
+            kRms rms aFlute
+            chnset kRms * 10, "rms_flute"
+            aL, aR pan2 aFlute, 0.5
+            gaFluteRvbL = gaFluteRvbL + aL * 0.7
+            gaFluteRvbR = gaFluteRvbR + aR * 0.7
+            outs aL * 0.3 * gkMasterFade * gkDryLevel, aR * 0.3 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Cello
+            iFreq = cpsmidinn(p4) * 0.5
+            iAmpBase = p5
+            kVol chnget "vol_cello"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linsegr 0, 1.5, 1, iDur - 2.5, 0.98, 1, 0
+            aSaw vco2 kAmp * kEnv * 0.18, iFreq, 0
+            aFilt moogladder aSaw, 600 + kEnv * 800, 0.3
+            kRms rms aFilt
+            chnset kRms * 10, "rms_cello"
+            aL, aR pan2 aFilt, 0.5
+            gaCelloRvbL = gaCelloRvbL + aL * 1.1
+            gaCelloRvbR = gaCelloRvbR + aR * 1.1
+            outs aL * 0.55 * gkMasterFade * gkDryLevel, aR * 0.55 * gkMasterFade * gkDryLevel
+            endin
+
+            instr LowThunder
+            iAmpBase = p4
+            kVol chnget "vol_thunder"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv expseg 1, 0.1, 0.8, 0.3, 0.6, iDur - 0.4, 0.001
+            aPink pinkish 1
+            aSub butterlp aPink * 4, 80
+            aMix = aSub * kEnv * kAmp
+            aMix tanh aMix * 1.3
+            kRms rms aMix
+            chnset kRms * 10, "rms_thunder"
+            aL, aR pan2 aMix, 0.5
+            outs aL * 0.35 * gkMasterFade * gkDryLevel, aR * 0.35 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Cricket
+            iAmpBase = p4
+            kVol chnget "vol_cricket"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iFreq random 4500, 8500
+            kEnv linseg 0, 0.05, 1, iDur - 0.1, 1, 0.05, 0
+            aNoise rand 0.65
+            aChirp butterbp aNoise, iFreq, iFreq * 0.25
+            aChirp = aChirp * kEnv * kAmp
+            kRms rms aChirp
+            chnset kRms * 10, "rms_cricket"
+            aL, aR pan2 aChirp, 0.5
+            gaCricketDelL = gaCricketDelL + aL * 0.95
+            gaCricketDelR = gaCricketDelR + aR * 0.95
+            outs aL * 1.8 * gkMasterFade * gkDryLevel, aR * 1.8 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Bird
+            iAmpBase = p4
+            kVol chnget "vol_bird"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iStartFreq random 1000, 4000
+            kEnv expseg 0.001, 0.01, 1, iDur - 0.01, 0.01
+            kFreq expseg iStartFreq, iDur, iStartFreq * 0.8
+            aBird poscil kAmp * kEnv, kFreq
+            kRms rms aBird
+            chnset kRms * 10, "rms_bird"
+            aL, aR pan2 aBird, 0.5
+            gaAmbienceL = gaAmbienceL + aL * 0.7
+            gaAmbienceR = gaAmbienceR + aR * 0.7
+            outs aL * 0.35 * gkMasterFade * gkDryLevel, aR * 0.35 * gkMasterFade * gkDryLevel
+            endin
+
+            instr WaterDrip
+            iAmpBase = p4
+            kVol chnget "vol_water"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            iDropFreq random 1200, 2800
+            kEnv expseg 1, 0.003, 0.6, 0.02, 0.3, iDur - 0.023, 0.001
+            aDrip poscil kAmp * kEnv, iDropFreq
+            kRms rms aDrip
+            chnset kRms * 10, "rms_water"
+            aL, aR pan2 aDrip, 0.5
+            gaShimmerL = gaShimmerL + aL * 0.85
+            gaShimmerR = gaShimmerR + aR * 0.85
+            outs aL * 0.12 * gkMasterFade * gkDryLevel, aR * 0.12 * gkMasterFade * gkDryLevel
+            endin
+
+            instr CracklingFire
+            iAmpBase = p4
+            kVol chnget "vol_fire"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv linsegr 0, iDur * 0.15, 1, iDur * 0.7, 0.9, 0.2, 0
+            aCrackle dust kAmp * 0.8, 95
+            aFire = aCrackle * kEnv
+            kRms rms aFire
+            chnset kRms * 10, "rms_fire"
+            aL, aR pan2 aFire, 0.5
+            gaEchoL = gaEchoL + aL * 0.6
+            gaEchoR = gaEchoR + aR * 0.6
+            outs aL * 0.65 * gkMasterFade * gkDryLevel, aR * 0.65 * gkMasterFade * gkDryLevel
+            endin
+
+            instr Marimba
+            iFreq = cpsmidinn(p4)
+            iAmpBase = p5
+            kVol chnget "vol_marimba"
+            kAmp = iAmpBase * kVol
+            iDur = p3
+            kEnv expsegr 0.001, 0.003, 1, iDur * 0.08, 0.25, iDur * 0.12, 0.08, 0.04, 0.001
+            aCar poscil kAmp * kEnv, iFreq
+            kRms rms aCar
+            chnset kRms * 10, "rms_marimba"
+            aL, aR pan2 aCar, 0.5
+            gaRvbL = gaRvbL + aL * 0.25
+            gaRvbR = gaRvbR + aR * 0.25
+            outs aL * 0.35 * gkMasterFade * gkDryLevel, aR * 0.35 * gkMasterFade * gkDryLevel
+            endin
+
+            instr GlobalFadeIn
+            gkMasterFade init 0
+            gkReverbFade init 0
+            if gkMasterFade < 1 then
+            gkMasterFade = gkMasterFade + (1.0 / (8.0 * kr))
+            gkMasterFade limit gkMasterFade, 0, 1
+            endif
+            if timeinsts() > 1 && gkReverbFade < 1 then
+            gkReverbFade = gkReverbFade + (1.0 / (6.0 * kr))
+            gkReverbFade limit gkReverbFade, 0, 1
+            endif
+            gkMasterVol chnget "vol_effect"
+            gkDryLevel chnget "vol_dry"
+            endin
+
+            instr MasterVolumeInit
+            chnset 1, "vol_effect"
+            chnset 1, "vol_dry"
+            chnset 1, "kill_switch"
+            endin
+
+            instr KillSwitch
+            gkKillSwitch chnget "kill_switch"
+            if gkKillSwitch < 0.01 then
+            turnoff2 "FM", 2, 0
+            turnoff2 "Drone", 2, 0
+            turnoff2 "NoiseSwell", 2, 0
+            turnoff2 "Rumble", 2, 0
+            turnoff2 "BellChord", 2, 0
+            turnoff2 "PwmChord", 2, 0
+            turnoff2 "LowThunder", 2, 0
+            turnoff2 "Flute", 2, 0
+            turnoff2 "Cello", 2, 0
+            turnoff2 "Cricket", 2, 0
+            turnoff2 "Bird", 2, 0
+            turnoff2 "WaterDrip", 2, 0
+            turnoff2 "CracklingFire", 2, 0
+            turnoff2 "Marimba", 2, 0
+            endif
+            endin
+
+            instr Reverb
+            aL, aR reverbsc gaRvbL, gaRvbR, 0.85, 8000
+            kMaster chnget "vol_effect"
+            outs aL * kMaster * gkReverbFade, aR * kMaster * gkReverbFade
+            clear gaRvbL, gaRvbR
+            endin
+
+            instr CricketMultitapDelay
+            aInL = gaCricketDelL
+            aInR = gaCricketDelR
+            aPingL delay aInR, 0.11
+            aMixL = aInL + aPingL * 0.7
+            aMixR = aInR + aPingL * 0.7
+            aRvbL, aRvbR reverbsc aMixL, aMixR, 0.94, 10000
+            kMaster chnget "vol_effect"
+            outs aRvbL * kMaster * gkReverbFade, aRvbR * kMaster * gkReverbFade
+            clear gaCricketDelL, gaCricketDelR
+            endin
+
+            instr BellShimmer
+            aInL = gaBellShimL
+            aInR = gaBellShimR
+            aRvbL, aRvbR reverbsc aInL, aInR, 0.92, 9000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.7 * kMaster * gkReverbFade, aRvbR * 0.7 * kMaster * gkReverbFade
+            clear gaBellShimL, gaBellShimR
+            endin
+
+            instr PwmFreeverb
+            aRvbL, aRvbR freeverb gaPwmRvbL, gaPwmRvbR, 0.88, 0.5
+            kMaster chnget "vol_effect"
+            outs aRvbL * kMaster * gkReverbFade, aRvbR * kMaster * gkReverbFade
+            clear gaPwmRvbL, gaPwmRvbR
+            endin
+
+            instr FluteNetwork
+            aInL = gaFluteRvbL
+            aInR = gaFluteRvbR
+            aRvbL, aRvbR reverbsc aInL, aInR, 0.88, 7000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.65 * kMaster * gkReverbFade, aRvbR * 0.65 * kMaster * gkReverbFade
+            clear gaFluteRvbL, gaFluteRvbR
+            endin
+
+            instr CelloNetwork
+            aInL = gaCelloRvbL
+            aInR = gaCelloRvbR
+            aRvbL, aRvbR reverbsc aInL, aInR, 0.9, 5000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.7 * kMaster * gkReverbFade, aRvbR * 0.7 * kMaster * gkReverbFade
+            clear gaCelloRvbL, gaCelloRvbR
+            endin
+
+            instr AmbienceReverb
+            aInL = gaAmbienceL
+            aInR = gaAmbienceR
+            aRvbL, aRvbR reverbsc aInL, aInR, 0.93, 10000
+            kMaster chnget "vol_effect"
+            outs aRvbL * 0.5 * kMaster * gkReverbFade, aRvbR * 0.5 * kMaster * gkReverbFade
+            clear gaAmbienceL, gaAmbienceR
+            endin
+
+            instr WaterShimmerReverb
+            aL = gaShimmerL
+            aR = gaShimmerR
+            aPitchL, aPitchR reverbsc aL, aR, 0.92, 12000
+            kMaster chnget "vol_effect"
+            outs aPitchL * kMaster * gkReverbFade, aPitchR * kMaster * gkReverbFade
+            clear gaShimmerL, gaShimmerR
+            endin
+
+            instr FireEcho
+            aL = gaEchoL
+            aR = gaEchoR
+            aDelL vdelay3 aL, 180, 600
+            kMaster chnget "vol_effect"
+            outs aDelL * 0.5 * kMaster * gkReverbFade, aDelL * 0.5 * kMaster * gkReverbFade
+            clear gaEchoL, gaEchoR
+            endin
+        `;
+
